@@ -257,14 +257,22 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("kind", choices=("fabric", "quilt", "paper"))
     parser.add_argument("--mc", required=True)
-    parser.add_argument("--jar", required=True)
+    parser.add_argument("--jar", default="")
     parser.add_argument("--loader", default="")
     parser.add_argument("--api", default="")
     parser.add_argument("--relax-loader", action="store_true", help="open fabricloader to '*' to probe older loaders")
     parser.add_argument("--drop-quilt-json", action="store_true", help="remove quilt.mod.json before loading on Quilt")
     parser.add_argument("--label", default="")
     parser.add_argument("--work", default="smoke-server")
+    parser.add_argument("--check-log", default="", help="only check an existing log (e.g. a client run)")
     args = parser.parse_args()
+
+    if args.check_log:
+        log_file = Path(args.check_log)
+        log = log_file.read_text(errors="replace") if log_file.exists() else ""
+        problems = analyse(args.kind, log, booted=bool(log), code=0) if log else [f"no log at {log_file}"]
+        return report(args.label or f"{args.kind} log", problems)
+
     args.jar = resolve_jar(args.jar)
     print(f"Testing {args.jar}", flush=True)
 
@@ -283,7 +291,10 @@ def main() -> int:
         log = log_path.read_text(errors="replace") if log_path.exists() else ""
         problems = analyse(args.kind, log, booted, code)
 
-    label = args.label or f"{args.kind} {args.mc} {args.loader}".strip()
+    return report(args.label or f"{args.kind} {args.mc} {args.loader}".strip(), problems)
+
+
+def report(label: str, problems: list[str]) -> int:
     verdict = "✅ starts cleanly" if not problems else "❌ " + "; ".join(problems)
     print(f"\n{label}: {verdict}", flush=True)
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
