@@ -207,6 +207,8 @@ tasks.processResources {
     }
     filesMatching(listOf("dreamdisplays.mixins.json", "dreamdisplays.server.mixins.json")) {
         expand(mapOf("javaVersion" to javaVersion))
+        // DisplayOitPhase targets the rendertype package (1.21.11+); older targets leave it out.
+        if (!hasRenderTypePackage) filter { line -> if ("\"DisplayOitPhase\"" in line) "" else line }
     }
     filesMatching("assets/dreamdisplays/version.txt") {
         expand(mapOf("version" to projectVersion))

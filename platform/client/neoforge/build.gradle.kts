@@ -84,6 +84,9 @@ sourceSets.create("vendoredLibraries") {
 }
 
 val isLegacyObfuscated = scVersion("minecraft.version").startsWith("1.")
+// The rendertype package only exists from 1.21.11.
+val hasRenderTypePackage = (scVersion("minecraft.version").split(".").map { it.toIntOrNull() ?: 0 } + listOf(0, 0, 0))
+    .let { (major, minor, patch) -> major * 1_000_000 + minor * 1_000 + patch >= 1_021_011 }
 if (isLegacyObfuscated) {
     evaluationDependsOn(":platform:client:fabric")
 }
@@ -216,6 +219,8 @@ tasks.processResources {
     }
     filesMatching(listOf("dreamdisplays.mixins.json", "dreamdisplays.server.mixins.json")) {
         expand(mapOf("javaVersion" to javaVersion))
+        // DisplayOitPhase targets the rendertype package (1.21.11+); older targets leave it out.
+        if (!hasRenderTypePackage) filter { line -> if ("\"DisplayOitPhase\"" in line) "" else line }
     }
     filesMatching("assets/dreamdisplays/version.txt") {
         expand(mapOf("version" to projectVersion))
