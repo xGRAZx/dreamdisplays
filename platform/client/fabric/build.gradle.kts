@@ -81,10 +81,16 @@ tasks.matching { it.name == "sourcesJar" }.configureEach {
 val sourceClassTweaker = project(":platform:client:common").file("src/main/resources/dreamdisplays.classtweaker")
 val classTweakerNamespace = if (isLegacyObfuscated) "named" else "official"
 val generatedClassTweaker = layout.buildDirectory.file("generated/classtweaker/dreamdisplays.classtweaker").get().asFile
+// The rendertype package only exists from 1.21.11; older targets drop those entries instead of making
+// the loader warn about (and skip) a class that is not there.
+val hasRenderTypePackage = (scVersion("minecraft.version").split(".").map { it.toIntOrNull() ?: 0 } + listOf(0, 0, 0))
+    .let { (major, minor, patch) -> major * 1_000_000 + minor * 1_000 + patch >= 1_021_011 }
 run {
-    val rewritten = sourceClassTweaker.readText().lineSequence().joinToString("\n") { line ->
-        if (line.startsWith("classTweaker v1 ")) "classTweaker v1 $classTweakerNamespace" else line
-    }
+    val rewritten = sourceClassTweaker.readText().lineSequence()
+        .filter { hasRenderTypePackage || "net/minecraft/client/renderer/rendertype/" !in it }
+        .joinToString("\n") { line ->
+            if (line.startsWith("classTweaker v1 ")) "classTweaker v1 $classTweakerNamespace" else line
+        }
     if (!generatedClassTweaker.exists() || generatedClassTweaker.readText() != rewritten) {
         generatedClassTweaker.parentFile.mkdirs()
         generatedClassTweaker.writeText(rewritten)
