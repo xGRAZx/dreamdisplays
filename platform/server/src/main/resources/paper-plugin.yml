@@ -79,3 +79,9 @@ permissions:
     default: true
   dreamdisplays.schedule.others:
     default: op
+  dreamdisplays.audio:
+    description: Edit screen sound range and the view settings forced on every player (audiorange).
+    default: op
+  dreamdisplays.audio.bypass:
+    description: See screens without the audiorange client mod when mod_required.txt is on.
+    default: false
