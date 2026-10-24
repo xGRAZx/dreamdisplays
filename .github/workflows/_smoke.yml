@@ -94,6 +94,7 @@ jobs:
           import json
           v = json.load(open("versions.json"))["versions"]["${{ matrix.mc }}"]
           print(f"loader={v['fabric.loader.version']}")
+          print(f"loader_min={v['fabric.loader.min']}")
           print(f"api={v['fabric.api.version']}")
           print(f"mc={v['fabric.minecraft.version']}")
           EOF
@@ -109,6 +110,22 @@ jobs:
             --jar "jars/dreamdisplays-fabric-${{ matrix.mc }}-${{ inputs.version }}.jar" \
             --label "Fabric ${{ matrix.mc }}, loader ${{ steps.target.outputs.loader }}" \
             --work smoke-pinned
+
+      # The oldest loader fabric.mod.json accepts, without relaxing anything: a raised minimum in
+      # Fabric API or a newer loader API used by the mod shows up here before players hit it.
+      - name: Start with the oldest supported loader
+        run: |
+          if [ "${{ steps.target.outputs.loader_min }}" = "${{ steps.target.outputs.loader }}" ]; then
+            echo "Oldest supported loader is the pinned one; already covered."
+            exit 0
+          fi
+          python3 .github/scripts/server_smoke.py fabric \
+            --mc "${{ steps.target.outputs.mc }}" \
+            --loader "${{ steps.target.outputs.loader_min }}" \
+            --api "${{ steps.target.outputs.api }}" \
+            --jar "jars/dreamdisplays-fabric-${{ matrix.mc }}-${{ inputs.version }}.jar" \
+            --label "Fabric ${{ matrix.mc }}, oldest supported loader ${{ steps.target.outputs.loader_min }}" \
+            --work smoke-oldest
 
       - name: Start with the newest loader
         run: |

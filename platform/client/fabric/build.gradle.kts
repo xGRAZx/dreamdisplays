@@ -203,14 +203,24 @@ tasks.processResources {
     val projectVersion = project.version.toString()
     val fabricMcVer = scVersion("fabric.minecraft.dependency")
     val javaVersion = scVersion("java.version")
+    // The oldest Fabric Loader the loader-compat sweep in CI saw start this target cleanly.
+    val fabricLoaderMin = scVersion("fabric.loader.min")
     // A local copy: the configuration cache cannot serialize a lambda that reads a script-level val.
     val stripOitMixin = !hasRenderTypePackage
     inputs.property("version", projectVersion)
     inputs.property("minecraftVersion", fabricMcVer)
     inputs.property("javaVersion", javaVersion)
     inputs.property("stripOitMixin", stripOitMixin)
+    inputs.property("fabricLoaderMin", fabricLoaderMin)
     filesMatching("fabric.mod.json") {
-        expand(mapOf("version" to projectVersion, "minecraftVersion" to fabricMcVer, "javaVersion" to javaVersion))
+        expand(
+            mapOf(
+                "version" to projectVersion,
+                "minecraftVersion" to fabricMcVer,
+                "javaVersion" to javaVersion,
+                "fabricLoaderMin" to fabricLoaderMin,
+            ),
+        )
     }
     filesMatching(listOf("dreamdisplays.mixins.json", "dreamdisplays.server.mixins.json")) {
         expand(mapOf("javaVersion" to javaVersion))
