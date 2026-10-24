@@ -203,16 +203,19 @@ tasks.processResources {
     val projectVersion = project.version.toString()
     val fabricMcVer = scVersion("fabric.minecraft.dependency")
     val javaVersion = scVersion("java.version")
+    // A local copy: the configuration cache cannot serialize a lambda that reads a script-level val.
+    val stripOitMixin = !hasRenderTypePackage
     inputs.property("version", projectVersion)
     inputs.property("minecraftVersion", fabricMcVer)
     inputs.property("javaVersion", javaVersion)
+    inputs.property("stripOitMixin", stripOitMixin)
     filesMatching("fabric.mod.json") {
         expand(mapOf("version" to projectVersion, "minecraftVersion" to fabricMcVer, "javaVersion" to javaVersion))
     }
     filesMatching(listOf("dreamdisplays.mixins.json", "dreamdisplays.server.mixins.json")) {
         expand(mapOf("javaVersion" to javaVersion))
         // DisplayOitPhase targets the rendertype package (1.21.11+); older targets leave it out.
-        if (!hasRenderTypePackage) filter { line -> if ("\"DisplayOitPhase\"" in line) "" else line }
+        if (stripOitMixin) filter { line -> if ("\"DisplayOitPhase\"" in line) "" else line }
     }
     filesMatching("assets/dreamdisplays/version.txt") {
         expand(mapOf("version" to projectVersion))
