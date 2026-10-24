@@ -9,7 +9,8 @@ import java.util.UUID
  * - `audio_ui`, `audio_range:<n>`, `audio_<sf|sb|sr|sl|vup|vdown>:<n>`, `audio_absorb_wool:<n>`,
  *   `audio_absorb_carpet:<n>`, `audio_d:<uuid or x,y,z>:range=<n>;sf=<n>;…` (sound range);
  * - `view_ui`, `view_g:a3=<mode>[;by=<uuid>]`, `view_d:<uuid>:v=<n>;b=<n>;q=<q>[;by=<uuid>]` (forced view);
- * - `audio_admin`, only for players allowed to edit (new in the source rewrite; older mods ignore it).
+ * - `audio_rev:<n>` and `audio_admin` (new in the source rewrite; older mods ignore them): the plugin
+ *   revision, and the flag sent only to players allowed to edit.
  */
 @Unstable
 data class AudioRangeFeatures(
@@ -19,6 +20,8 @@ data class AudioRangeFeatures(
     val viewSupported: Boolean = false,
     /** This player may edit sound and view settings for everyone. */
     val soundAdmin: Boolean = false,
+    /** Plugin revision; 0 for the audiorange 1-21 plugins, which did not send `audio_admin` at all. */
+    val revision: Int = 0,
     val range: AudioRangeSettings = AudioRangeSettings(global = AudioRangeProfile.UNLIMITED),
     val view: ViewSettings = ViewSettings(),
 ) {
@@ -28,6 +31,7 @@ data class AudioRangeFeatures(
     fun toWire(): List<String> = buildList {
         if (rangeSupported) {
             add(RANGE_UI)
+            if (revision > 0) add("$REVISION$revision")
             val g = range.global
             add("audio_range:${AudioRangeFile.fmt(g.range)}")
             RangeDirection.entries.forEach { add("audio_${it.wire}:${AudioRangeFile.fmt(g.scale(it))}") }
@@ -63,6 +67,8 @@ data class AudioRangeFeatures(
         const val RANGE_UI = "audio_ui"
         const val VIEW_UI = "view_ui"
         const val SOUND_ADMIN = "audio_admin"
+        const val CURRENT_REVISION = 2
+        private const val REVISION = "audio_rev:"
         private const val RANGE_GLOBAL = "audio_range:"
         private const val ABSORB_WOOL = "audio_absorb_wool:"
         private const val ABSORB_CARPET = "audio_absorb_carpet:"
@@ -77,6 +83,7 @@ data class AudioRangeFeatures(
             var rangeUi = false
             var viewUi = false
             var admin = false
+            var revision = 0
             var global = AudioRangeProfile.UNLIMITED
             var wool = AudioRangeSettings.DEFAULT_ABSORB_WOOL
             var carpet = AudioRangeSettings.DEFAULT_ABSORB_CARPET
@@ -90,6 +97,7 @@ data class AudioRangeFeatures(
                         token == RANGE_UI -> rangeUi = true
                         token == VIEW_UI -> viewUi = true
                         token == SOUND_ADMIN -> admin = true
+                        token.startsWith(REVISION) -> revision = token.substring(REVISION.length).trim().toInt()
                         token.startsWith(RANGE_GLOBAL) -> global = global.copy(range = token.substring(RANGE_GLOBAL.length).trim().toDouble())
                         token.startsWith(ABSORB_WOOL) -> wool = absorb(token.substring(ABSORB_WOOL.length), wool)
                         token.startsWith(ABSORB_CARPET) -> carpet = absorb(token.substring(ABSORB_CARPET.length), carpet)
@@ -114,6 +122,7 @@ data class AudioRangeFeatures(
                 rangeSupported = rangeUi,
                 viewSupported = viewUi,
                 soundAdmin = admin,
+                revision = revision,
                 range = AudioRangeSettings(global, wool, carpet, sections),
                 view = ViewSettings(a3, views),
             )

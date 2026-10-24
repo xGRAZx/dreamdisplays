@@ -24,6 +24,7 @@ class AudioRangeFeaturesTest {
             rangeSupported = true,
             viewSupported = true,
             soundAdmin = true,
+            revision = AudioRangeFeatures.CURRENT_REVISION,
             range = AudioRangeSettings(
                 global = AudioRangeProfile(range = 6.0).withScale(RangeDirection.BACK, 3.0),
                 absorbWool = 0.3,
@@ -51,6 +52,7 @@ class AudioRangeFeaturesTest {
         assertTrue(f.rangeSupported)
         assertTrue(f.viewSupported)
         assertFalse(f.soundAdmin)
+        assertEquals(0, f.revision)
         assertEquals(4.0, f.range.global.scale(RangeDirection.BACK))
         val (p, custom) = f.profileFor(id, null)
         assertTrue(custom)

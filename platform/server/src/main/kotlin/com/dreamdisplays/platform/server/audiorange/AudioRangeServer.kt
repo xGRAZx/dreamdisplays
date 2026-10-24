@@ -61,6 +61,7 @@ object AudioRangeServer {
             rangeSupported = true,
             viewSupported = true,
             soundAdmin = isSoundAdmin(player),
+            revision = AudioRangeFeatures.CURRENT_REVISION,
             range = range.get(),
             view = view.get(),
         ).toWire()
