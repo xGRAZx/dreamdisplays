@@ -255,7 +255,8 @@ jobs:
           seen = {}
           for e in json.load(sys.stdin):
               l = e["loader"]
-              if not l["stable"]:
+              # Meta flags only the newest loader as stable; skip betas and builds instead.
+              if "-" in l["version"] or "+" in l["version"]:
                   continue
               minor = ".".join(l["version"].split(".")[:2])
               seen.setdefault(minor, l["version"])
@@ -267,9 +268,7 @@ jobs:
               --jar "$jar" --relax-loader --label "Fabric loader $loader (requirement relaxed)" --work "probe-$i" || true
           done
           python3 .github/scripts/server_smoke.py quilt --mc "$mc" --api "$api" --jar "$jar" \
-            --label "Quilt, newest loader, jar as built" --work probe-quilt || true
-          python3 .github/scripts/server_smoke.py quilt --mc "$mc" --api "$api" --jar "$jar" --drop-quilt-json \
-            --label "Quilt, newest loader, fabric.mod.json only" --work probe-quilt-fmj || true
+            --label "Quilt, newest loader" --work probe-quilt || true
 
       - name: Upload server logs
         if: always()

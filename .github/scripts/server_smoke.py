@@ -27,6 +27,8 @@ from pathlib import Path
 
 USER_AGENT = "dreamdisplays-ci (https://github.com/xGRAZx/dreamdisplays)"
 BOOT_TIMEOUT_S = 900
+# Keep the server up this long after "Done" so delayed startup work (update check, scheduled tasks) runs too.
+LINGER_S = 20
 
 # Any of these anywhere in the log fails the run: they mean code that did not link or a mixin that
 # did not apply, which would crash or silently break players' games.
@@ -197,6 +199,14 @@ def run_server(root: Path, launch: list[str], log_path: Path) -> tuple[bool, int
     )
     booted = threading.Event()
 
+    def stop() -> None:
+        try:
+            assert process.stdin is not None
+            process.stdin.write("stop\n")
+            process.stdin.flush()
+        except (OSError, ValueError):
+            pass
+
     def pump() -> None:
         with log_path.open("w") as log:
             assert process.stdout is not None
@@ -205,12 +215,7 @@ def run_server(root: Path, launch: list[str], log_path: Path) -> tuple[bool, int
                 log.write(line)
                 if not booted.is_set() and "Done (" in line:
                     booted.set()
-                    try:
-                        assert process.stdin is not None
-                        process.stdin.write("stop\n")
-                        process.stdin.flush()
-                    except OSError:
-                        pass
+                    threading.Timer(LINGER_S, stop).start()
 
     reader = threading.Thread(target=pump, daemon=True)
     reader.start()
@@ -232,11 +237,14 @@ def analyse(kind: str, log: str, booted: bool, code: int | None) -> list[str]:
         hit = next((line for line in lines if marker in line), None)
         if hit:
             problems.append(f"`{marker}`: {hit.strip()[:300]}")
-    own = [line for line in lines if OWN_ERROR.search(line)]
+    # Paths (the CI checkout is called "dreamdisplays" too) are dropped before looking for our own errors.
+    own = [line for line in lines if OWN_ERROR.search(re.sub(r"(?<![\w\]])/[^\s:;)]*|[A-Za-z]:\\\S*", "", line))]
     if own:
         problems.append(f"DreamDisplays error: {own[0].strip()[:300]}")
     if kind in ("fabric", "quilt") and not re.search(r"(^|[-|])\s*dreamdisplays\b", log, re.MULTILINE | re.IGNORECASE):
         problems.append("dreamdisplays is not in the loaded mod list")
+    if kind in ("fabric", "quilt") and "Storage connected" not in log:
+        problems.append("the DreamDisplays server side never started (no 'Storage connected')")
     if kind == "paper" and "Enabling DreamDisplays" not in log:
         problems.append("plugin was never enabled")
     return problems
