@@ -26,6 +26,10 @@ on:
         value: ${{ jobs.metadata.outputs.marketplace_publish_tasks }}
       required_native_platforms:
         value: ${{ jobs.metadata.outputs.required_native_platforms }}
+      build_stonecutter_versions:
+        value: ${{ jobs.metadata.outputs.build_stonecutter_versions }}
+      paper_build_version:
+        value: ${{ jobs.metadata.outputs.paper_build_version }}
 
 env:
   BTBN_FFMPEG_TAG: autobuild-2026-08-31-13-27
