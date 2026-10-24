@@ -20,6 +20,9 @@ import com.dreamdisplays.core.runtime.get
 import com.dreamdisplays.core.services.keys.WatchPartyServices
 import com.dreamdisplays.media.source.youtube.cache.VideoMetadataCache
 import com.dreamdisplays.media.source.youtube.cache.VideoTitleCache
+import com.dreamdisplays.platform.client.audiorange.AudioRangeClient
+import com.dreamdisplays.platform.client.audiorange.AudioRangeScreen
+import com.dreamdisplays.platform.client.audiorange.ViewSync
 import com.dreamdisplays.platform.client.core.DreamServices
 import com.dreamdisplays.platform.client.input.MouseButtons
 import com.dreamdisplays.platform.client.displays.DisplayScreen
@@ -115,8 +118,11 @@ class DisplayMenu private constructor(
                 label = { Component.literal("${(it * 200).roundToInt()}%") },
                 // Volume's fraction maps to 0-200%, so a 5%-of-displayed-value stop is 0.025 of the fraction.
                 step = 0.025,
-            ) { playback.setVolume(displayId, it.toFloat()) })
-        volume.enabledWhen = videoReady
+            ) {
+                playback.setVolume(displayId, it.toFloat())
+                ViewSync.userVolume(ds.uuid, it.toFloat())
+            })
+        volume.enabledWhen = { videoReady() && ViewSync.forced(ds.uuid)?.volume == null }
         volume.visibleWhen = notErrored
 
         quality = addUi(
@@ -136,12 +142,15 @@ class DisplayMenu private constructor(
                 // while dragging, which can drop videoReady() mid-drag and freeze the widget.
                 live = false,
             ) {
-                if (ds.qualityList.isNotEmpty()) playback.setQuality(
-                    displayId,
-                    VideoQuality.parse(qualityFromFraction(it))
-                )
+                if (ds.qualityList.isNotEmpty()) {
+                    val picked = VideoQuality.parse(qualityFromFraction(it))
+                    playback.setQuality(displayId, picked)
+                    ViewSync.userQuality(ds.uuid, picked)
+                }
             })
-        quality.enabledWhen = { ds.qualityList.isNotEmpty() && ds.canChangeQualityHere }
+        quality.enabledWhen = {
+            ds.qualityList.isNotEmpty() && ds.canChangeQualityHere && ViewSync.forced(ds.uuid)?.quality == null
+        }
         quality.visibleWhen = notErrored
 
         brightness = addUi(
@@ -149,20 +158,25 @@ class DisplayMenu private constructor(
                 initial = ds.brightness.toDouble().coerceIn(0.0, 1.0),
                 label = { Component.literal("${(it * 100).roundToInt()}%") },
                 step = 0.05,
-            ) { playback.setBrightness(displayId, it.toFloat()) })
-        brightness.enabledWhen = { !ds.isSync || ds.canEdit }
+            ) {
+                playback.setBrightness(displayId, it.toFloat())
+                ViewSync.userBrightness(ds.uuid, it.toFloat())
+            })
+        brightness.enabledWhen = { (!ds.isSync || ds.canEdit) && ViewSync.forced(ds.uuid)?.brightness == null }
         brightness.visibleWhen = notErrored
 
         audio3d = addUi(
             ModeSlider(
                 modes = AUDIO_3D_MODES,
-                initial = ClientStateManager.config.audioAcoustics,
-                current = { ClientStateManager.config.audioAcoustics },
-                enabledFor = { true },
+                initial = ViewSync.effectiveAcoustics,
+                current = { ViewSync.effectiveAcoustics },
+                // On an audiorange server only a sound admin picks the mode, for everyone.
+                enabledFor = { !ViewSync.locked },
                 label = { Component.translatable(audio3dModeLabel(it)) },
             ) { quality ->
                 ClientStateManager.config.audioAcoustics = quality
                 ClientStateManager.config.save()
+                ViewSync.userAcoustics(quality)
                 DreamServices.registry.getOrNull(AudioAcousticsServices.ACOUSTICS)?.setGlobalQuality(quality)
             })
         audio3d.visibleWhen = notErrored
@@ -207,24 +221,29 @@ class DisplayMenu private constructor(
 
         val qualityReset = addUi(IconButton("refresh") {
             playback.setQuality(displayId, VideoQuality.DEFAULT)
+            ViewSync.userQuality(ds.uuid, VideoQuality.DEFAULT)
             quality.value = qualityFraction(VideoQuality.DEFAULT.serialize())
         })
-        qualityReset.enabledWhen = { ds.canChangeQualityHere && ds.quality != VideoQuality.DEFAULT }
+        qualityReset.enabledWhen = {
+            ds.canChangeQualityHere && ds.quality != VideoQuality.DEFAULT && ViewSync.forced(ds.uuid)?.quality == null
+        }
         qualityReset.visibleWhen = notErrored
 
         val brightnessReset = addUi(IconButton("refresh") {
             playback.setBrightness(displayId, 1.0f)
+            ViewSync.userBrightness(ds.uuid, 1.0f)
             brightness.value = 1.0
         })
-        brightnessReset.enabledWhen = { abs(brightness.value - 1.0) > 0.01 }
+        brightnessReset.enabledWhen = { abs(brightness.value - 1.0) > 0.01 && ViewSync.forced(ds.uuid)?.brightness == null }
         brightnessReset.visibleWhen = notErrored
 
         val audio3dReset = addUi(IconButton("refresh") {
             ClientStateManager.config.audioAcoustics = AUDIO_3D_DEFAULT
             ClientStateManager.config.save()
+            ViewSync.userAcoustics(AUDIO_3D_DEFAULT)
             DreamServices.registry.getOrNull(AudioAcousticsServices.ACOUSTICS)?.setGlobalQuality(AUDIO_3D_DEFAULT)
         })
-        audio3dReset.enabledWhen = { ClientStateManager.config.audioAcoustics != AUDIO_3D_DEFAULT }
+        audio3dReset.enabledWhen = { !ViewSync.locked && ViewSync.effectiveAcoustics != AUDIO_3D_DEFAULT }
         audio3dReset.visibleWhen = notErrored
 
         val syncReset = addUi(IconButton("refresh") {
@@ -314,6 +333,13 @@ class DisplayMenu private constructor(
             })
         deleteButton.enabledWhen = { ds.owner || ds.isAdmin }
 
+        // Sound range editor (audiorange): only for sound admins, usable once the server runs the plugin.
+        val soundButton = if (AudioRangeClient.isSoundAdmin) {
+            addUi(IconButton("sound") {
+                MinecraftScreenUtil.setScreen(Minecraft.getInstance(), AudioRangeScreen(ds))
+            }).also { it.enabledWhen = { AudioRangeClient.serverHasEditor } }
+        } else null
+
         val reportButton = if (ClientStateManager.isReportingEnabled) {
             addUi(
                 IconButton(
@@ -338,8 +364,9 @@ class DisplayMenu private constructor(
             )
         settings = SettingsSection(
             rows = settingsRows(qualityReset, brightnessReset, audio3dReset, syncReset, accessReset),
-            ownerActions = listOf(reportButton, deleteButton),
+            ownerActions = listOf(soundButton, reportButton, deleteButton),
             buttonTooltips = listOf(
+                soundButton to { soundTooltip() },
                 deleteButton to { buttonTooltip("dreamdisplays.button.delete") },
                 reportButton to { buttonTooltip("dreamdisplays.button.report") },
             ),
@@ -475,6 +502,12 @@ class DisplayMenu private constructor(
         tooltipTitle("$prefix.tooltip.1"),
         tooltipBody("$prefix.tooltip.2"),
     )
+
+    /** Tooltip of the sound range button; says why it is greyed out on a server without the plugin. */
+    private fun soundTooltip(): List<Component> = buildList {
+        add(tooltipTitle("dreamdisplays.audio.open"))
+        if (!AudioRangeClient.serverHasEditor) add(tooltipBody("dreamdisplays.audio.no_server"))
+    }
 
     /** Requests [info] as the display video and reloads the related list once the intent is sent. */
     private fun onPickSuggested(info: MediaSearchResult) {

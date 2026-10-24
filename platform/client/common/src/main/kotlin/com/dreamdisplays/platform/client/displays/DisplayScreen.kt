@@ -35,6 +35,8 @@ import com.dreamdisplays.media.player.MediaPlayer
 import com.dreamdisplays.platform.client.Initializer
 import com.dreamdisplays.platform.client.audio.ListenerPoseTracker
 import com.dreamdisplays.platform.client.audio.VoxelAcousticsProbe
+import com.dreamdisplays.platform.client.audiorange.AudioRangeClient
+import com.dreamdisplays.platform.client.audiorange.ViewSync
 import com.dreamdisplays.platform.client.core.DreamServices
 import com.dreamdisplays.platform.client.displays.DisplayScreen.Companion.DEFAULT_QUALITY
 import com.dreamdisplays.platform.client.displays.DisplayScreen.Companion.ENV_PROBE_INTERVAL_TICKS
@@ -1217,7 +1219,9 @@ class DisplayScreen(
     internal fun primeNewPlayerVolume(mp: MediaPlayer) {
         val player = Minecraft.getInstance().player ?: return
         val maxRadius = if (isPopoutActive) Double.MAX_VALUE else ClientStateManager.config.defaultDistance.toDouble()
-        mp.primeVolume(if (muted || focusMuted) 0f else volume, getDistanceToScreen(player.blockPosition()), maxRadius)
+        mp.primeVolume(
+            if (muted || focusMuted) 0f else volume, getDistanceToScreen(player.blockPosition()), maxRadius, rangeGain(),
+        )
     }
 
     /** Whether this display can be parked warm when it leaves render distance (Local VOD on the
@@ -1291,11 +1295,22 @@ class DisplayScreen(
     /** Ticks remaining before the room reverb is re-probed; jittered like [envProbeCountdown]. */
     private var reverbProbeCountdown: Int = uuid.hashCode().mod(REVERB_PROBE_INTERVAL_TICKS)
 
+    /**
+     * Server-set sound limits for this tick (audiorange range fade x wool / carpet absorption), `0`..`1`.
+     * A popout plays for the viewer alone, so no limit applies to it.
+     */
+    private fun rangeGain(): Double {
+        if (isPopoutActive) return 1.0
+        return AudioRangeClient.gainFor(uuid, x, y, z, sourcePlane(), ListenerPoseTracker.currentPose(Minecraft.getInstance()))
+    }
+
     /** Called every game tick to update distance-based volume attenuation from [pos]. */
     fun tick(pos: BlockPos) {
+        ViewSync.tick(this)
         val maxRadius = if (isPopoutActive) Double.MAX_VALUE else ClientStateManager.config.defaultDistance.toDouble()
         val distance = getDistanceToScreen(pos)
-        mediaPlayer?.tick(distance, maxRadius)
+        val rangeGain = rangeGain()
+        mediaPlayer?.tick(distance, maxRadius, rangeGain)
         restoreAudioTrackIfPending()
         restoreSubtitleTrackIfPending()
         if (isPopoutActive) {
@@ -1308,7 +1323,7 @@ class DisplayScreen(
         } else {
             updateDistanceQuality((distance / renderDistance.coerceAtLeast(1)).toFloat(), distance)
         }
-        if (ClientStateManager.config.audioAcoustics == AcousticQuality.OFF) return
+        if (ViewSync.effectiveAcoustics == AcousticQuality.OFF) return
         val plane = sourcePlane()
         DreamServices.registry.getOrNull(AudioAcousticsServices.ACOUSTICS)?.updateSource(
             uuid,
@@ -1319,6 +1334,7 @@ class DisplayScreen(
                 bypassSpatial = isPopoutActive,
                 acousticsEnabled = acousticsEnabled,
                 environment = probeEnvironment(plane, distance),
+                rangeGain = rangeGain.toFloat(),
             ),
         )
     }
@@ -1328,7 +1344,7 @@ class DisplayScreen(
      * displays), room reverb every [REVERB_PROBE_INTERVAL_TICKS]; a silent display keeps its last result.
      */
     private fun probeEnvironment(plane: SourcePlane, distance: Double): AcousticEnvironment {
-        val tier = ClientStateManager.config.audioAcoustics
+        val tier = ViewSync.effectiveAcoustics
         if (isPopoutActive || !acousticsEnabled || (tier != AcousticQuality.ADVANCED && tier != AcousticQuality.ULTRA)) {
             cachedEnvironment = AcousticEnvironment.OPEN_AIR
             cachedReverb = null
