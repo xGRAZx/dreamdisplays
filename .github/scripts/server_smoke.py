@@ -247,7 +247,7 @@ def resolve_jar(pattern: str) -> str:
     if Path(pattern).is_file():
         return pattern
     matches = sorted(Path().glob(pattern), key=lambda p: len(p.name))
-    matches = [p for p in matches if not re.search(r"-(sources|dev|dev-shadow|javadoc)\.jar$", p.name)]
+    matches = [p for p in matches if not re.search(r"-(sources|javadoc|dev-shadow)\.jar$", p.name)]
     if not matches:
         raise SystemExit(f"No jar matches {pattern}: {sorted(os.listdir(Path(pattern).parent or '.'))}")
     return str(matches[0])
@@ -256,7 +256,7 @@ def resolve_jar(pattern: str) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("kind", choices=("fabric", "quilt", "paper"))
-    parser.add_argument("--mc", required=True)
+    parser.add_argument("--mc", default="")
     parser.add_argument("--jar", default="")
     parser.add_argument("--loader", default="")
     parser.add_argument("--api", default="")

@@ -170,9 +170,9 @@ jobs:
           python3 - <<'EOF' >> "$GITHUB_OUTPUT"
           import json
           v = json.load(open("versions.json"))["versions"]["${{ matrix.mc }}"]
-          print(f"api={v['fabric.api.version']}")
+          # mc-runtime-test appends "+<mc>" to the Fabric API version itself.
+          print(f"api={v['fabric.api.version'].split('+')[0]}")
           print(f"mc={v['fabric.minecraft.version']}")
-          print(f"java={v['java.version']}")
           EOF
           mkdir -p run/mods
           cp "jars/dreamdisplays-fabric-${{ matrix.mc }}-${{ inputs.version }}.jar" run/mods/
