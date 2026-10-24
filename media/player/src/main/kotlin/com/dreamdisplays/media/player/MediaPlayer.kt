@@ -487,9 +487,9 @@ class MediaPlayer(
     /**
      * Seeds volume up-front (before audio starts) to avoid loud burst on reappear.
      */
-    fun primeVolume(userVolume: Float, distance: Double, maxRadius: Double) {
+    fun primeVolume(userVolume: Float, distance: Double, maxRadius: Double, rangeGain: Double = 1.0) {
         volume.setUserVolume(userVolume)
-        volume.updateAttenuation(distance, maxRadius)
+        volume.updateAttenuation(distance, maxRadius, rangeGain)
     }
 
     /** Sets the brightness multiplier applied to each frame before GPU upload (0.0–2.0). */
@@ -648,11 +648,12 @@ class MediaPlayer(
         capturePreparedMedia()?.streamSet?.currentVideo?.seekByDecoding == true
 
     /**
-     * Updates distance-based volume attenuation (call every tick from game thread).
+     * Updates distance-based volume attenuation (call every tick from game thread). [rangeGain] is the
+     * extra `0.0`..`1.0` factor of server-set sound limits.
      */
-    fun tick(distance: Double, maxRadius: Double) {
+    fun tick(distance: Double, maxRadius: Double, rangeGain: Double = 1.0) {
         if (!isReady) return
-        volume.updateAttenuation(distance, maxRadius)
+        volume.updateAttenuation(distance, maxRadius, rangeGain)
     }
 
     /**

@@ -103,11 +103,12 @@ internal class AudioRenderChain(
         val leftEmitter = EmitterLayout.leftEmitter(center, uAxis, plane.width)
         val rightEmitter = EmitterLayout.rightEmitter(center, uAxis, plane.width)
 
+        val rangeGain = st.rangeGain.coerceIn(0f, 1f)
         val gL = distanceGainL.next(
-            EmitterLayout.distanceGain((listenerPos - leftEmitter).length(), refDistance).toFloat(), dtBlock,
+            EmitterLayout.distanceGain((listenerPos - leftEmitter).length(), refDistance).toFloat() * rangeGain, dtBlock,
         ) * directivity
         val gR = distanceGainR.next(
-            EmitterLayout.distanceGain((listenerPos - rightEmitter).length(), refDistance).toFloat(), dtBlock,
+            EmitterLayout.distanceGain((listenerPos - rightEmitter).length(), refDistance).toFloat() * rangeGain, dtBlock,
         ) * directivity
 
         val azL = azimuthL.next(azimuthOf(leftEmitter, listenerPos, listenerForward, listenerRight), dtBlock)

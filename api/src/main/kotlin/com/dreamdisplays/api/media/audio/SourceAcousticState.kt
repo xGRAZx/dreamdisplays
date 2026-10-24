@@ -29,4 +29,10 @@ data class SourceAcousticState(
 
     /** Latest raytraced acoustic space (occlusion + reverb); defaults to OPEN_AIR. */
     val environment: AcousticEnvironment = AcousticEnvironment.OPEN_AIR,
+
+    /**
+     * Extra gain from server-set limits (the audiorange sound range and wool / carpet absorption),
+     * `0.0`..`1.0`; applied on top of distance attenuation and smoothed like it.
+     */
+    val rangeGain: Float = 1f,
 )
