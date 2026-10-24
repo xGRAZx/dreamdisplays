@@ -249,18 +249,24 @@ jobs:
           print(v["fabric.minecraft.version"], v["fabric.api.version"])')
           echo "| Run | Result |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
-          # The newest stable loader of every minor line that supports this Minecraft version.
+          # The newest and the oldest release of every loader line from 0.15 that supports this version.
           loaders=$(curl -fsSL "https://meta.fabricmc.net/v2/versions/loader/$mc" | python3 -c '
           import json, sys
-          seen = {}
+          lines = {}
           for e in json.load(sys.stdin):
-              l = e["loader"]
+              v = e["loader"]["version"]
               # Meta flags only the newest loader as stable; skip betas and builds instead.
-              if "-" in l["version"] or "+" in l["version"]:
+              if "-" in v or "+" in v:
                   continue
-              minor = ".".join(l["version"].split(".")[:2])
-              seen.setdefault(minor, l["version"])
-          print(" ".join(list(seen.values())[:6]))')
+              major, minor = (int(x) for x in v.split(".")[:2])
+              if (major, minor) >= (0, 15):
+                  lines.setdefault((major, minor), []).append(v)
+          picked = []
+          for versions in lines.values():  # newest line first, newest version first
+              for v in (versions[0], versions[-1]):
+                  if v not in picked:
+                      picked.append(v)
+          print(" ".join(picked))')
           i=0
           for loader in $loaders; do
             i=$((i + 1))

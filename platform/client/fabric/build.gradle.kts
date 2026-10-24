@@ -89,7 +89,11 @@ run {
     val rewritten = sourceClassTweaker.readText().lineSequence()
         .filter { hasRenderTypePackage || "net/minecraft/client/renderer/rendertype/" !in it }
         .joinToString("\n") { line ->
-            if (line.startsWith("classTweaker v1 ")) "classTweaker v1 $classTweakerNamespace" else line
+            // Obfuscated targets use the classic access widener header: its entries are the same, and
+            // unlike the class tweaker format every Fabric Loader since 0.12 can read it.
+            if (!line.startsWith("classTweaker v1 ")) line
+            else if (isLegacyObfuscated) "accessWidener v2 $classTweakerNamespace"
+            else "classTweaker v1 $classTweakerNamespace"
         }
     if (!generatedClassTweaker.exists() || generatedClassTweaker.readText() != rewritten) {
         generatedClassTweaker.parentFile.mkdirs()
