@@ -81,10 +81,20 @@ tasks.matching { it.name == "sourcesJar" }.configureEach {
 val sourceClassTweaker = project(":platform:client:common").file("src/main/resources/dreamdisplays.classtweaker")
 val classTweakerNamespace = if (isLegacyObfuscated) "named" else "official"
 val generatedClassTweaker = layout.buildDirectory.file("generated/classtweaker/dreamdisplays.classtweaker").get().asFile
+// The rendertype package only exists from 1.21.11; older targets drop those entries instead of making
+// the loader warn about (and skip) a class that is not there.
+val hasRenderTypePackage = (scVersion("minecraft.version").split(".").map { it.toIntOrNull() ?: 0 } + listOf(0, 0, 0))
+    .let { (major, minor, patch) -> major * 1_000_000 + minor * 1_000 + patch >= 1_021_011 }
 run {
-    val rewritten = sourceClassTweaker.readText().lineSequence().joinToString("\n") { line ->
-        if (line.startsWith("classTweaker v1 ")) "classTweaker v1 $classTweakerNamespace" else line
-    }
+    val rewritten = sourceClassTweaker.readText().lineSequence()
+        .filter { hasRenderTypePackage || "net/minecraft/client/renderer/rendertype/" !in it }
+        .joinToString("\n") { line ->
+            // Obfuscated targets use the classic access widener header: its entries are the same, and
+            // unlike the class tweaker format every Fabric Loader since 0.12 can read it.
+            if (!line.startsWith("classTweaker v1 ")) line
+            else if (isLegacyObfuscated) "accessWidener v2 $classTweakerNamespace"
+            else "classTweaker v1 $classTweakerNamespace"
+        }
     if (!generatedClassTweaker.exists() || generatedClassTweaker.readText() != rewritten) {
         generatedClassTweaker.parentFile.mkdirs()
         generatedClassTweaker.writeText(rewritten)
@@ -193,17 +203,29 @@ tasks.processResources {
     val projectVersion = project.version.toString()
     val fabricMcVer = scVersion("fabric.minecraft.dependency")
     val javaVersion = scVersion("java.version")
+    // The oldest Fabric Loader the loader-compat sweep in CI saw start this target cleanly.
+    val fabricLoaderMin = scVersion("fabric.loader.min")
+    // A local copy: the configuration cache cannot serialize a lambda that reads a script-level val.
+    val stripOitMixin = !hasRenderTypePackage
     inputs.property("version", projectVersion)
     inputs.property("minecraftVersion", fabricMcVer)
     inputs.property("javaVersion", javaVersion)
+    inputs.property("stripOitMixin", stripOitMixin)
+    inputs.property("fabricLoaderMin", fabricLoaderMin)
     filesMatching("fabric.mod.json") {
-        expand(mapOf("version" to projectVersion, "minecraftVersion" to fabricMcVer, "javaVersion" to javaVersion))
-    }
-    filesMatching("quilt.mod.json") {
-        expand(mapOf("version" to projectVersion, "minecraftVersion" to fabricMcVer, "javaVersion" to javaVersion))
+        expand(
+            mapOf(
+                "version" to projectVersion,
+                "minecraftVersion" to fabricMcVer,
+                "javaVersion" to javaVersion,
+                "fabricLoaderMin" to fabricLoaderMin,
+            ),
+        )
     }
     filesMatching(listOf("dreamdisplays.mixins.json", "dreamdisplays.server.mixins.json")) {
         expand(mapOf("javaVersion" to javaVersion))
+        // DisplayOitPhase targets the rendertype package (1.21.11+); older targets leave it out.
+        if (stripOitMixin) filter { line -> if ("\"DisplayOitPhase\"" in line) "" else line }
     }
     filesMatching("assets/dreamdisplays/version.txt") {
         expand(mapOf("version" to projectVersion))

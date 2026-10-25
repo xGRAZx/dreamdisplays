@@ -9,6 +9,7 @@ import com.dreamdisplays.shared.protocol.PacketDirection
 import com.dreamdisplays.core.protocol.common.PacketRegistry
 import com.dreamdisplays.core.protocol.common.packets.*
 import com.dreamdisplays.platform.server.PaperServer
+import com.dreamdisplays.platform.server.audiorange.AudioRangeServer
 import com.dreamdisplays.platform.server.managers.DisplayManager
 import com.dreamdisplays.platform.server.managers.PlayerManager
 import com.dreamdisplays.platform.server.playback.FullscreenBroadcastManager
@@ -40,7 +41,7 @@ object PaperV2Networking : PluginMessageListener {
         val bytes = runCatching { PacketRegistry.encode(packet) }
             .onFailure { logger.warn("Failed to encode v2 packet", it) }
             .getOrNull() ?: return
-        players.filterNotNull().forEach { player ->
+        AudioRangeServer.filter(players, packet).filterNotNull().forEach { player ->
             runCatching { player.sendPluginMessage(plugin, V2_CHANNEL, bytes) }
                 .onFailure { logger.warn("Failed to send v2 packet to ${player.name}", it) }
         }
@@ -51,7 +52,7 @@ object PaperV2Networking : PluginMessageListener {
         isPremium = player.hasPermission(PaperServer.config.permissions.premium),
         isAdmin = player.hasPermission(PaperServer.config.permissions.deleteOthers),
         isReportingEnabled = PaperServer.config.settings.webhookUrl.isNotEmpty(),
-        allowedFeatures = serverFeatureWires(),
+        allowedFeatures = serverFeatureWires() + AudioRangeServer.featureWires(player),
         defaultVolume = PaperServer.config.settings.defaultVolume,
         maxDisplays = maxDisplaysFor(player.hasPermission(PaperServer.config.permissions.createBypass)),
     )
@@ -76,6 +77,7 @@ object PaperV2Networking : PluginMessageListener {
     /** Decodes an envelope frame and dispatches the packet; unknown type ids are skipped. */
     override fun onPluginMessageReceived(channel: String, player: Player, message: ByteArray) {
         if (channel != V2_CHANNEL) return
+        if (AudioRangeServer.intercept(player, message)) return
         val packet = runCatching { PacketRegistry.decode(message, PacketDirection.CLIENT_TO_SERVER) }
             .onFailure { logger.warn("Failed to decode v2 packet from ${player.name}", it) }
             .getOrNull() ?: return
@@ -124,6 +126,7 @@ object PaperV2Networking : PluginMessageListener {
      * version-check flow.
      */
     private fun handleHello(player: Player, hello: ClientHello) {
+        AudioRangeServer.onClientHello(player)
         if (V2PlayerTracker.isV2(player.uniqueId)) return
         V2PlayerTracker.markV2(player.uniqueId, hello)
         send(listOf(player), buildServerHello(player))

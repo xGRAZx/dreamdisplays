@@ -21,3 +21,11 @@ jobs:
     uses: ./.github/workflows/_build.yml
     with:
       pull_request: ${{ github.event_name == 'pull_request' }}
+
+  smoke:
+    needs: build
+    uses: ./.github/workflows/_smoke.yml
+    with:
+      version: ${{ needs.build.outputs.version }}
+      stonecutter_versions: ${{ needs.build.outputs.build_stonecutter_versions }}
+      paper_build_version: ${{ needs.build.outputs.paper_build_version }}

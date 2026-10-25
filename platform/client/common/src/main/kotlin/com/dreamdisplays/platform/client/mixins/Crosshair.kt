@@ -19,7 +19,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo
 /** Mixin that suppresses crosshair rendering while the player is looking at a display screen. */
 @Suppress("NonJavaMixin")
 @Pseudo
-//? if >=26 {
+// The HUD class is Gui up to 26.1 and Hud from 26.2; the extract* methods below exist in both.
+//? if >=26.2 {
 @Mixin(targets = ["net.minecraft.client.gui.Hud"])
 //?} else
 /*@Mixin(targets = ["net.minecraft.client.gui.Gui"])*/

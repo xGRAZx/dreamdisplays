@@ -15,6 +15,7 @@ import com.dreamdisplays.api.display.model.property.DisplayFacing
 import com.dreamdisplays.platform.client.displays.DisplayRegistry
 import com.dreamdisplays.platform.client.displays.DisplayScreen
 import com.dreamdisplays.platform.client.displays.PlacedDisplays
+import com.dreamdisplays.platform.client.managers.PerformanceGovernor
 import org.joml.Quaternionf
 import com.dreamdisplays.platform.client.render.ScreenRenderer.drawLayer
 import com.mojang.blaze3d.vertex.PoseStack
@@ -53,9 +54,13 @@ object ScreenRenderer {
         //?} else
         /*camera.getPosition()*/
         DisplayCulling.begin(camera, cameraPos)
+        if (!replay) PerformanceGovernor.onFrame()
         for (displayScreen in DisplayRegistry.getScreens()) {
-            if (displayScreen.isDormant || !displayScreen.hasTexture) continue
-            if (!DisplayCulling.isVisible(displayScreen)) {
+            if (displayScreen.isDormant) continue
+            val visible = DisplayCulling.isVisible(displayScreen)
+            if (visible && !replay) displayScreen.markSeen()
+            if (!displayScreen.hasTexture) continue
+            if (!visible) {
                 if (!replay) displayScreen.fitTextureWhileHidden()
                 continue
             }

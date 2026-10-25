@@ -107,6 +107,23 @@ class AudioRenderChainTest {
         assertTrue(kotlin.math.abs(jumpDb) < 1.0, "Volume jumped ${"%.1f".format(jumpDb)} dB across a reset.")
     }
 
+    @Test
+    fun `server range gain fades the spatial mix smoothly to silence`() {
+        val loud = newChain(binaural = false).also { it.updateState(defaultState()) }
+        val silent = newChain(binaural = false).also { it.updateState(defaultState().copy(rangeGain = 0f)) }
+        val half = newChain(binaural = false).also { it.updateState(defaultState().copy(rangeGain = 0.5f)) }
+        var l = 0.0
+        var s = 0.0
+        var h = 0.0
+        repeat(40) {
+            l = rms(tone(0.3).also { loud.process(it, it.size, 1.0) })
+            s = rms(tone(0.3).also { silent.process(it, it.size, 1.0) })
+            h = rms(tone(0.3).also { half.process(it, it.size, 1.0) })
+        }
+        assertTrue(s < 1e-4, "Out-of-range source still audible: rms=$s.")
+        assertEquals(0.5, h / l, 0.02)
+    }
+
     private fun settledRms(quality: AcousticQuality, amplitude: Double): Double {
         val chain = newChain(quality = quality, binaural = false, normalization = true)
         chain.updateState(defaultState())

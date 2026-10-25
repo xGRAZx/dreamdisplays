@@ -3,6 +3,7 @@ package com.dreamdisplays.platform.server.listeners
 import com.dreamdisplays.platform.server.ModLoaderOnly
 import com.dreamdisplays.platform.server.PaperServer.Companion.config
 import com.dreamdisplays.platform.server.VanillaServerState
+import com.dreamdisplays.platform.server.audiorange.AudioRangeServer
 import com.dreamdisplays.platform.server.managers.DisplayManager
 import com.dreamdisplays.platform.server.managers.PlayerManager
 import com.dreamdisplays.platform.server.meta.Scheduler
@@ -69,6 +70,7 @@ class PlayerListener : Listener {
     fun onPlayerLeave(event: PlayerQuitEvent) {
         PlayerManager.removeVersion(event.player)
         V2PlayerTracker.clear(event.player.uniqueId)
+        AudioRangeServer.onQuit(event.player.uniqueId)
         WatchPartyManager.onPlayerQuit(event.player.uniqueId)
         FullscreenBroadcastManager.onPlayerQuit(event.player.uniqueId)
         DisplayManager.forgetNearbyPlayer(event.player.uniqueId)

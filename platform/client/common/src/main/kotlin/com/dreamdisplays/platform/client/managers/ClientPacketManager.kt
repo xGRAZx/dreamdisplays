@@ -7,6 +7,7 @@ import com.dreamdisplays.core.protocol.common.packets.*
 import com.dreamdisplays.core.services.DisplayStorage
 import com.dreamdisplays.platform.client.Initializer
 import com.dreamdisplays.platform.client.Mod
+import com.dreamdisplays.platform.client.audiorange.AudioRangeClient
 import com.dreamdisplays.platform.client.capabilities.CapabilityNegotiationService
 import com.dreamdisplays.platform.client.core.DreamServices
 import com.dreamdisplays.platform.client.displays.DisplayRegistry
@@ -70,6 +71,7 @@ object ClientPacketManager {
         ClientStateManager.isReportingEnabled = packet.isReportingEnabled
         DreamServices.registry.getOrNull<CapabilityNegotiationService>()
             ?.onServerCapabilities(packet)
+        AudioRangeClient.onServerHello(packet)
         Initializer.sendPacket(SetDisplaysEnabled(ClientStateManager.displaysEnabled))
     }
 
@@ -102,5 +104,6 @@ object ClientPacketManager {
     fun reset() {
         serverSnapshot = ServerHello()
         FullscreenController.reset()
+        AudioRangeClient.reset()
     }
 }

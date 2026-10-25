@@ -1,0 +1,143 @@
+name: AltDisplays release
+
+# Publishes an AltDisplays build (Dream Displays with the audiorange features) for the server owner
+# and players: a GitHub release with just the Minecraft 1.21.11 mod and the Paper plugin, under a
+# link that always points at the newest one (https://github.com/<owner>/dreamdisplays/releases/latest).
+# Runs when ALTDISPLAYS_VERSION changes on the work branch or main (the release then creates the
+# alt-<version> tag itself), for `alt-<version>` tags, or from the Actions tab with a version,
+# after the same build and smoke tests as CI.
+# A PR that changes this file runs everything except the publish step, as a dry run.
+on:
+  push:
+    branches:
+      - main
+      - claude/project-thread-6cn8s0
+    paths:
+      - ALTDISPLAYS_VERSION
+    tags:
+      - 'alt-*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'AltDisplays version, like 1.0'
+        required: true
+  pull_request:
+    paths:
+      - .github/workflows/audiorange-release.yml
+
+concurrency:
+  group: audiorange-release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  check-tag:
+    name: Check the tag
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.check.outputs.build }}
+      release: ${{ steps.check.outputs.release }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6.0.3
+        with:
+          fetch-depth: 1
+
+      - name: Read the version
+        id: check
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          build=$(sed -n 's/^ *const val BUILD = \([0-9]\+\)$/\1/p' \
+            shared/src/main/kotlin/com/dreamdisplays/shared/audiorange/AudioRangeProtocol.kt)
+          if [ -z "$build" ]; then
+            echo "::error::AudioRangeProtocol.BUILD not found."
+            exit 1
+          fi
+          release=0.0-dryrun
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            release="$INPUT_VERSION"
+          elif [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            release="${GITHUB_REF_NAME#alt-}"
+          elif [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            release=$(tr -d '[:space:]' < ALTDISPLAYS_VERSION)
+          fi
+          if [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
+            if ! printf '%s' "$release" | grep -Eq '^[0-9]+(\.[0-9]+)+$'; then
+              echo "::error::Version '$release' is not like 1.0 (tag alt-1.0)."
+              exit 1
+            fi
+          fi
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+          echo "release=$release" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: check-tag
+    uses: ./.github/workflows/_build.yml
+    with:
+      pull_request: false
+
+  smoke:
+    needs: build
+    uses: ./.github/workflows/_smoke.yml
+    with:
+      version: ${{ needs.build.outputs.version }}
+      stonecutter_versions: ${{ needs.build.outputs.build_stonecutter_versions }}
+      paper_build_version: ${{ needs.build.outputs.paper_build_version }}
+
+  release:
+    name: Publish AltDisplays ${{ needs.check-tag.outputs.release }}
+    runs-on: ubuntu-latest
+    needs: [ check-tag, build, smoke ]
+    permissions:
+      contents: write
+    env:
+      MC: '1.21.11'
+      BUILD: ${{ needs.check-tag.outputs.build }}
+      RELEASE: ${{ needs.check-tag.outputs.release }}
+      VERSION: ${{ needs.build.outputs.version }}
+    steps:
+      - name: Download the 1.21.11 jars
+        uses: actions/download-artifact@v8.0.1
+        with:
+          name: build-jars-1.21.11
+          path: jars
+
+      - name: Name the files
+        run: |
+          mkdir release
+          cp "jars/dreamdisplays-fabric-$MC-$VERSION.jar" "release/AltDisplays-$RELEASE-$MC-Fabric-by-GRAZ.jar"
+          paper=$(ls jars/dreamdisplays-paper-*.jar | grep -Ev -- '-(sources|javadoc|dev-shadow)\.jar$' | head -1)
+          if [ -z "$paper" ]; then
+            echo "::error::No Paper plugin jar in build-jars-$MC."
+            exit 1
+          fi
+          cp "$paper" "release/AltDisplays-$RELEASE-$MC-Paper-by-GRAZ.jar"
+          ls -l release
+
+      - name: Write the release notes
+        run: |
+          cat > notes.md <<EOF
+          **AltDisplays $RELEASE** for Minecraft $MC, by GRAZ (Dream Displays $VERSION with audiorange build $BUILD).
+
+          - \`AltDisplays-$RELEASE-$MC-Fabric-by-GRAZ.jar\`: the mod, for everyone (players and admins). Put it in \`mods\`.
+          - \`AltDisplays-$RELEASE-$MC-Paper-by-GRAZ.jar\`: the server plugin. Put it in \`plugins\`.
+
+          Use the mod and the plugin from the same release. Admin features need the permission \`dreamdisplays.audio\`.
+
+          Tested before publishing: Fabric and Paper servers start with these files, and the game client joins a world.
+          EOF
+
+      - name: Publish the release
+        if: github.event_name != 'pull_request'
+        run: |
+          gh release create "alt-$RELEASE" release/*.jar \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "AltDisplays $RELEASE (Minecraft $MC)" \
+            --notes-file notes.md \
+            --latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

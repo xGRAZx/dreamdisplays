@@ -38,7 +38,11 @@ import net.fabricmc.api.ClientModInitializer
 import com.dreamdisplays.platform.client.input.DisplayMenuInputHandler
 import net.fabricmc.fabric.api.event.player.UseBlockCallback
 import net.minecraft.world.InteractionResult
+import com.mojang.brigadier.CommandDispatcher
+import com.mojang.brigadier.builder.LiteralArgumentBuilder
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
+import com.dreamdisplays.platform.client.diagnostics.DiagnosticsReport
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking
@@ -159,6 +163,19 @@ class Client : ClientModInitializer, Mod {
         }
 
         ClientLifecycleEvents.CLIENT_STOPPING.register { Initializer.onStop() }
+
+        // `/ddreport`: the diagnostics report players send the server admin.
+        ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ -> registerReportCommand(dispatcher) }
+    }
+
+    /** Plain Brigadier, since Fabric API renamed its client command helpers between versions. */
+    private fun <S> registerReportCommand(dispatcher: CommandDispatcher<S>) {
+        dispatcher.register(
+            LiteralArgumentBuilder.literal<S>(DiagnosticsReport.COMMAND).executes {
+                DiagnosticsReport.run()
+                1
+            },
+        )
     }
 
     /** Packet sender. */

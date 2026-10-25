@@ -1,0 +1,344 @@
+name: Smoke
+
+# Reusable checks that run after the build: unit tests, and real dedicated servers started with the
+# built jars so load errors (mixins, missing classes, plugin enable failures) show up in CI instead of
+# on a player's server. Called by ci.yml.
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Project version, as in the jar names.
+        type: string
+        required: true
+      stonecutter_versions:
+        description: JSON list of the Minecraft versions that were built.
+        type: string
+        required: true
+      paper_build_version:
+        description: Minecraft version the Paper plugin was built for.
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6.0.3
+        with:
+          fetch-depth: 1
+
+      - name: Setup JDK 25
+        uses: actions/setup-java@v5.2.0
+        with:
+          java-version: 25
+          distribution: temurin
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6.1.0
+        with:
+          cache-read-only: true
+
+      - name: Run unit tests
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :shared:test :media:audio:test --no-daemon --continue
+        env:
+          GRADLE_OPTS: -Dorg.gradle.daemon=false -Xmx4G
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: test-reports
+          path: |
+            shared/build/reports/tests
+            media/audio/build/reports/tests
+          retention-days: 7
+
+  fabric-server:
+    name: Fabric server ${{ matrix.mc }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        mc: ${{ fromJSON(inputs.stonecutter_versions) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6.0.3
+        with:
+          fetch-depth: 1
+
+      - name: Setup JDK 25
+        uses: actions/setup-java@v5.2.0
+        with:
+          java-version: 25
+          distribution: temurin
+
+      - name: Download jars
+        uses: actions/download-artifact@v8.0.1
+        with:
+          name: build-jars-${{ matrix.mc }}
+          path: jars
+
+      - name: Read target versions
+        id: target
+        run: |
+          python3 - <<'EOF' >> "$GITHUB_OUTPUT"
+          import json
+          v = json.load(open("versions.json"))["versions"]["${{ matrix.mc }}"]
+          print(f"loader={v['fabric.loader.version']}")
+          print(f"loader_min={v['fabric.loader.min']}")
+          print(f"api={v['fabric.api.version']}")
+          print(f"mc={v['fabric.minecraft.version']}")
+          EOF
+          echo "| Run | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Start with the pinned loader
+        run: |
+          python3 .github/scripts/server_smoke.py fabric \
+            --mc "${{ steps.target.outputs.mc }}" \
+            --loader "${{ steps.target.outputs.loader }}" \
+            --api "${{ steps.target.outputs.api }}" \
+            --jar "jars/dreamdisplays-fabric-${{ matrix.mc }}-${{ inputs.version }}.jar" \
+            --label "Fabric ${{ matrix.mc }}, loader ${{ steps.target.outputs.loader }}" \
+            --work smoke-pinned
+
+      # The oldest loader fabric.mod.json accepts, without relaxing anything: a raised minimum in
+      # Fabric API or a newer loader API used by the mod shows up here before players hit it.
+      - name: Start with the oldest supported loader
+        run: |
+          if [ "${{ steps.target.outputs.loader_min }}" = "${{ steps.target.outputs.loader }}" ]; then
+            echo "Oldest supported loader is the pinned one; already covered."
+            exit 0
+          fi
+          python3 .github/scripts/server_smoke.py fabric \
+            --mc "${{ steps.target.outputs.mc }}" \
+            --loader "${{ steps.target.outputs.loader_min }}" \
+            --api "${{ steps.target.outputs.api }}" \
+            --jar "jars/dreamdisplays-fabric-${{ matrix.mc }}-${{ inputs.version }}.jar" \
+            --label "Fabric ${{ matrix.mc }}, oldest supported loader ${{ steps.target.outputs.loader_min }}" \
+            --work smoke-oldest
+
+      - name: Start with the newest loader
+        run: |
+          latest=$(curl -fsSL "https://meta.fabricmc.net/v2/versions/loader/${{ steps.target.outputs.mc }}" \
+            | python3 -c 'import json,sys; print(next(e["loader"]["version"] for e in json.load(sys.stdin) if e["loader"]["stable"]))')
+          if [ "$latest" = "${{ steps.target.outputs.loader }}" ]; then
+            echo "Newest loader is the pinned one; already covered."
+            exit 0
+          fi
+          python3 .github/scripts/server_smoke.py fabric \
+            --mc "${{ steps.target.outputs.mc }}" \
+            --loader "$latest" \
+            --api "${{ steps.target.outputs.api }}" \
+            --jar "jars/dreamdisplays-fabric-${{ matrix.mc }}-${{ inputs.version }}.jar" \
+            --label "Fabric ${{ matrix.mc }}, newest loader $latest" \
+            --work smoke-latest
+
+      - name: Upload server logs
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: smoke-logs-fabric-${{ matrix.mc }}
+          path: smoke-*/server.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # The real game client (headless, software OpenGL under Xvfb) with the shipped jar: it creates and
+  # joins a singleplayer world, so client mixins, the client entrypoint and the integrated server all
+  # load. The run fails on a crash; the log is then checked like the server logs.
+  fabric-client:
+    name: Fabric client ${{ matrix.mc }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        mc: ${{ fromJSON(inputs.stonecutter_versions) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6.0.3
+        with:
+          fetch-depth: 1
+
+      - name: Setup JDK 25
+        uses: actions/setup-java@v5.2.0
+        with:
+          java-version: 25
+          distribution: temurin
+
+      - name: Download jars
+        uses: actions/download-artifact@v8.0.1
+        with:
+          name: build-jars-${{ matrix.mc }}
+          path: jars
+
+      - name: Read target versions
+        id: target
+        run: |
+          python3 - <<'EOF' >> "$GITHUB_OUTPUT"
+          import json
+          v = json.load(open("versions.json"))["versions"]["${{ matrix.mc }}"]
+          # mc-runtime-test appends "+<mc>" to the Fabric API version itself.
+          print(f"api={v['fabric.api.version'].split('+')[0]}")
+          print(f"mc={v['fabric.minecraft.version']}")
+          EOF
+          mkdir -p run/mods
+          cp "jars/dreamdisplays-fabric-${{ matrix.mc }}-${{ inputs.version }}.jar" run/mods/
+
+      - name: Run the client
+        uses: headlesshq/mc-runtime-test@5.0.0
+        with:
+          mc: ${{ steps.target.outputs.mc }}
+          modloader: fabric
+          regex: .*fabric.*
+          mc-runtime-test: fabric
+          java: 25
+          fabric-api: ${{ steps.target.outputs.api }}
+          xvfb: true
+          cache-mc: github
+
+      - name: Check the client log
+        if: always()
+        run: |
+          echo "| Run | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          log=$(find . -path ./jars -prune -o -name latest.log -print | head -1)
+          echo "Client log: ${log:-none}"
+          python3 .github/scripts/server_smoke.py fabric --check-log "${log:-run/logs/latest.log}" \
+            --label "Fabric client ${{ matrix.mc }}"
+
+      - name: Upload client logs
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: smoke-logs-client-${{ matrix.mc }}
+          path: |
+            **/logs/latest.log
+            **/crash-reports/*.txt
+            !jars/**
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # Informational: which older Fabric loaders and Quilt can run the mod at all. It never fails CI; the
+  # table in the job summary shows the real minimum, which then goes into fabric.mod.json.
+  loader-compat:
+    name: Loader compatibility ${{ matrix.mc }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        mc: ${{ fromJSON(inputs.stonecutter_versions) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6.0.3
+        with:
+          fetch-depth: 1
+
+      - name: Setup JDK 25
+        uses: actions/setup-java@v5.2.0
+        with:
+          java-version: 25
+          distribution: temurin
+
+      - name: Download jars
+        uses: actions/download-artifact@v8.0.1
+        with:
+          name: build-jars-${{ matrix.mc }}
+          path: jars
+
+      - name: Probe loaders
+        run: |
+          jar="jars/dreamdisplays-fabric-${{ matrix.mc }}-${{ inputs.version }}.jar"
+          read -r mc api < <(python3 -c '
+          import json
+          v = json.load(open("versions.json"))["versions"]["${{ matrix.mc }}"]
+          print(v["fabric.minecraft.version"], v["fabric.api.version"])')
+          echo "| Run | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          # The newest and the oldest release of every loader line from 0.15 that supports this version.
+          loaders=$(curl -fsSL "https://meta.fabricmc.net/v2/versions/loader/$mc" | python3 -c '
+          import json, sys
+          lines = {}
+          for e in json.load(sys.stdin):
+              v = e["loader"]["version"]
+              # Meta flags only the newest loader as stable; skip betas and builds instead.
+              if "-" in v or "+" in v:
+                  continue
+              major, minor = (int(x) for x in v.split(".")[:2])
+              if (major, minor) >= (0, 15):
+                  lines.setdefault((major, minor), []).append(v)
+          picked = []
+          for versions in lines.values():  # newest line first, newest version first
+              for v in (versions[0], versions[-1]):
+                  if v not in picked:
+                      picked.append(v)
+          print(" ".join(picked))')
+          i=0
+          for loader in $loaders; do
+            i=$((i + 1))
+            python3 .github/scripts/server_smoke.py fabric --mc "$mc" --loader "$loader" --api "$api" \
+              --jar "$jar" --relax-loader --label "Fabric loader $loader (requirement relaxed)" --work "probe-$i" || true
+          done
+          python3 .github/scripts/server_smoke.py quilt --mc "$mc" --api "$api" --jar "$jar" \
+            --label "Quilt, newest loader" --work probe-quilt || true
+
+      - name: Upload server logs
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: compat-logs-${{ matrix.mc }}
+          path: probe-*/server.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  paper-server:
+    name: Paper server ${{ inputs.paper_build_version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6.0.3
+        with:
+          fetch-depth: 1
+
+      - name: Setup JDK 25
+        uses: actions/setup-java@v5.2.0
+        with:
+          java-version: 25
+          distribution: temurin
+
+      - name: Download jars
+        uses: actions/download-artifact@v8.0.1
+        with:
+          name: build-jars-${{ inputs.paper_build_version }}
+          path: jars
+
+      - name: Start Paper with the plugin
+        run: |
+          echo "| Run | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          python3 .github/scripts/server_smoke.py paper \
+            --mc "${{ inputs.paper_build_version }}" \
+            --jar "jars/dreamdisplays-paper-*.jar" \
+            --label "Paper ${{ inputs.paper_build_version }}" \
+            --work smoke-paper
+
+      - name: Upload server log
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: smoke-logs-paper
+          path: smoke-paper/server.log
+          if-no-files-found: ignore
+          retention-days: 7

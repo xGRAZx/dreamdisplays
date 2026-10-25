@@ -8,6 +8,7 @@ import com.dreamdisplays.core.services.keys.AudioAcousticsServices
 import com.dreamdisplays.core.runtime.getOrNull
 import com.dreamdisplays.shared.storage.DisplayData
 import com.dreamdisplays.core.services.DisplayStorage
+import com.dreamdisplays.platform.client.audiorange.AudioRangeClient
 import com.dreamdisplays.platform.client.core.DreamServices
 import com.dreamdisplays.platform.client.render.ConformingWorldMesh
 import com.dreamdisplays.platform.client.storage.ClientSettingsStore
@@ -84,6 +85,7 @@ object DisplayRegistry {
         displayScreen.unregister()
         displaySystem?.removeDisplay(DisplayId(displayScreen.uuid))
         DreamServices.registry.getOrNull(AudioAcousticsServices.ACOUSTICS)?.unregisterSource(displayScreen.uuid)
+        AudioRangeClient.forget(displayScreen.uuid)
     }
 
     /** Unregisters all display screens. */

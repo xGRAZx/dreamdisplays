@@ -21,6 +21,7 @@ import net.neoforged.fml.common.Mod
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent
 import net.neoforged.neoforge.client.event.ClientTickEvent
+import net.neoforged.neoforge.client.event.RegisterClientCommandsEvent
 import net.neoforged.neoforge.client.event.RenderGuiEvent
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent
 //? if >=26.3 {
@@ -33,6 +34,8 @@ import net.neoforged.neoforge.client.event.lifecycle.ClientStoppingEvent
 //?} else
 /*import net.neoforged.neoforge.client.event.RenderHighlightEvent*/
 import net.neoforged.neoforge.common.NeoForge
+import net.minecraft.commands.Commands
+import com.dreamdisplays.platform.client.diagnostics.DiagnosticsReport
 
 @Mod(value = Initializer.MOD_ID, dist = [Dist.CLIENT])
 class Client(modEventBus: IEventBus, container: ModContainer) : DreamMod {
@@ -72,6 +75,17 @@ class Client(modEventBus: IEventBus, container: ModContainer) : DreamMod {
     @SubscribeEvent
     fun onDisconnect(event: ClientPlayerNetworkEvent.LoggingOut) {
         Initializer.onServerLeft()
+    }
+
+    /** `/ddreport`: the diagnostics report players send the server admin. */
+    @SubscribeEvent
+    fun onRegisterClientCommands(event: RegisterClientCommandsEvent) {
+        event.dispatcher.register(
+            Commands.literal(DiagnosticsReport.COMMAND).executes {
+                DiagnosticsReport.run()
+                1
+            },
+        )
     }
 
     //? if >=1.21.11 {

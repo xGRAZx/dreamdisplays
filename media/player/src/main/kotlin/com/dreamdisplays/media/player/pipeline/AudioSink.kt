@@ -1,6 +1,7 @@
 package com.dreamdisplays.media.player.pipeline
 
 import com.dreamdisplays.api.media.audio.AudioDspStage
+import com.dreamdisplays.media.player.AudioDiagnostics
 import com.dreamdisplays.media.player.MediaPlayer
 import com.dreamdisplays.media.player.pipeline.AudioSink.Companion.PCM_RING_MAX_BYTES
 import com.dreamdisplays.media.player.util.MediaBufferEffects
@@ -393,6 +394,7 @@ internal class AudioSink(private val debugLabel: String) {
                 val info = DataLine.Info(SourceDataLine::class.java, fmt)
                 if (!AudioSystem.isLineSupported(info)) {
                     logger.warn("$debugLabel PCM line not supported (switch).")
+                    AudioDiagnostics.recordFailure("no output supports 44.1 kHz stereo PCM")
                     return@use
                 }
                 newLine = openLine(info, fmt) ?: run {
@@ -548,6 +550,7 @@ internal class AudioSink(private val debugLabel: String) {
                 val info = DataLine.Info(SourceDataLine::class.java, fmt)
                 if (!AudioSystem.isLineSupported(info)) {
                     logger.warn("$debugLabel PCM line not supported.")
+                    AudioDiagnostics.recordFailure("no output supports 44.1 kHz stereo PCM")
                     return@runCatching
                 }
                 ln = openLine(info, fmt) ?: run {
@@ -612,6 +615,7 @@ internal class AudioSink(private val debugLabel: String) {
             val info = DataLine.Info(SourceDataLine::class.java, fmt)
             if (!AudioSystem.isLineSupported(info)) {
                 logger.warn("$debugLabel PCM line not supported (bridge).")
+                AudioDiagnostics.recordFailure("no output supports 44.1 kHz stereo PCM")
                 return@runCatching
             }
             ln = openLine(info, fmt) ?: run {
@@ -816,8 +820,10 @@ internal class AudioSink(private val debugLabel: String) {
         stopFlag: AtomicBoolean
     ) {
         val unplayedBefore = (ln.bufferSize - ln.available()).coerceAtLeast(0)
+        AudioDiagnostics.chunksWritten.incrementAndGet()
         if (paceStreaming) {
             if (unplayedBefore == 0) {
+                AudioDiagnostics.underruns.incrementAndGet()
                 paceTargetBytes = (paceTargetBytes + PACE_STEP_BYTES).coerceAtMost(MAX_PACE_BYTES)
                 paceCleanChunks = 0
             } else if (++paceCleanChunks >= PACE_RECOVER_CHUNKS) {
@@ -864,10 +870,14 @@ internal class AudioSink(private val debugLabel: String) {
     private fun openLine(info: DataLine.Info, fmt: AudioFormat): SourceDataLine? {
         repeat(OPEN_RETRIES) { attempt ->
             try {
-                return (AudioSystem.getLine(info) as SourceDataLine).also { it.open(fmt, LINE_BUFFER_BYTES) }
+                return (AudioSystem.getLine(info) as SourceDataLine).also {
+                    it.open(fmt, LINE_BUFFER_BYTES)
+                    AudioDiagnostics.linesOpened.incrementAndGet()
+                }
             } catch (e: LineUnavailableException) {
                 if (attempt == OPEN_RETRIES - 1) {
                     logger.warn("$debugLabel Line unavailable: ${e.message}.")
+                    AudioDiagnostics.recordFailure("line unavailable: ${e.message}")
                     return null
                 }
                 try {
