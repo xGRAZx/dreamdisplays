@@ -3,12 +3,24 @@ name: AltDisplays release
 # Publishes an AltDisplays build (Dream Displays with the audiorange features) for the server owner
 # and players: a GitHub release with just the Minecraft 1.21.11 mod and the Paper plugin, under a
 # link that always points at the newest one (https://github.com/<owner>/dreamdisplays/releases/latest).
-# Runs for `alt-<version>` tags (alt-1.0, alt-1.1, ...) after the same build and smoke tests as CI.
+# Runs when ALTDISPLAYS_VERSION changes on the work branch or main (the release then creates the
+# alt-<version> tag itself), for `alt-<version>` tags, or from the Actions tab with a version,
+# after the same build and smoke tests as CI.
 # A PR that changes this file runs everything except the publish step, as a dry run.
 on:
   push:
+    branches:
+      - main
+      - claude/project-thread-6cn8s0
+    paths:
+      - ALTDISPLAYS_VERSION
     tags:
       - 'alt-*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'AltDisplays version, like 1.0'
+        required: true
   pull_request:
     paths:
       - .github/workflows/audiorange-release.yml
@@ -33,8 +45,10 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Read the version from the tag
+      - name: Read the version
         id: check
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
           build=$(sed -n 's/^ *const val BUILD = \([0-9]\+\)$/\1/p' \
             shared/src/main/kotlin/com/dreamdisplays/shared/audiorange/AudioRangeProtocol.kt)
@@ -43,10 +57,16 @@ jobs:
             exit 1
           fi
           release=0.0-dryrun
-          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            release="$INPUT_VERSION"
+          elif [ "$GITHUB_REF_TYPE" = "tag" ]; then
             release="${GITHUB_REF_NAME#alt-}"
+          elif [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            release=$(tr -d '[:space:]' < ALTDISPLAYS_VERSION)
+          fi
+          if [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
             if ! printf '%s' "$release" | grep -Eq '^[0-9]+(\.[0-9]+)+$'; then
-              echo "::error::Tag $GITHUB_REF_NAME is not alt-<version>, like alt-1.0."
+              echo "::error::Version '$release' is not like 1.0 (tag alt-1.0)."
               exit 1
             fi
           fi
@@ -111,10 +131,11 @@ jobs:
           EOF
 
       - name: Publish the release
-        if: github.ref_type == 'tag'
+        if: github.event_name != 'pull_request'
         run: |
-          gh release create "$GITHUB_REF_NAME" release/*.jar \
+          gh release create "alt-$RELEASE" release/*.jar \
             --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
             --title "AltDisplays $RELEASE (Minecraft $MC)" \
             --notes-file notes.md \
             --latest
