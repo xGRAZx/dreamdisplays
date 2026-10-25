@@ -17,6 +17,24 @@ class SettingsFilesTest {
     }
 
     @Test
+    fun playerBrightnessInTheFile() {
+        // Files from before the setting fix players at 100 %, like the audiorange 1-21 player mod.
+        assertEquals(1.0, ViewSettingsFile.parse(listOf("a3=ULTRA")).playerBrightness)
+        assertNull(ViewSettingsFile.parse(listOf("brightness=off")).playerBrightness)
+        assertEquals(0.6, ViewSettingsFile.parse(listOf("brightness=0.6")).playerBrightness)
+        assertEquals(2.0, ViewSettingsFile.parse(listOf("brightness=5")).playerBrightness)
+        assertEquals(1.0, ViewSettingsFile.parse(listOf("brightness=dim")).playerBrightness)
+        // Inside a section the key is that screen's own brightness, not the players' one.
+        val s = ViewSettingsFile.parse(listOf("brightness=off", "[display $id]", "brightness=0.5"))
+        assertNull(s.playerBrightness)
+        assertEquals(0.5, s.displays.getValue(id).brightness)
+        for (b in listOf(null, 0.25, 1.0)) {
+            val v = ViewSettings(playerBrightness = b)
+            assertEquals(v, ViewSettingsFile.parse(ViewSettingsFile.render(v)))
+        }
+    }
+
+    @Test
     fun viewEditsAreClampedAndValidated() {
         var s = ViewSettings()
         s = ViewSettingsFile.apply(s, ViewEdit.Volume(id, 9.0))!!
@@ -50,5 +68,18 @@ class SettingsFilesTest {
         assertEquals(ModGateSettings.DEFAULT_MESSAGE_EN, s.messageEn)
         assertEquals("https://x.y/z", s.downloadUrl)
         assertEquals("Get", s.buttonLabel)
+    }
+
+    @Test
+    fun modGateUpdateReminder() {
+        val d = ModGateFile.parse(ModGateFile.DEFAULT_LINES)
+        assertNull(d.minBuild)
+        assertEquals(AudioRangeProtocol.BUILD, d.requiredBuild)
+
+        assertEquals(0, ModGateFile.parse(listOf("true", "min_build=0")).requiredBuild)
+        assertEquals(25, ModGateFile.parse(listOf("true", "min_build=25")).requiredBuild)
+        assertNull(ModGateFile.parse(listOf("true", "min_build=-3")).minBuild)
+        assertNull(ModGateFile.parse(listOf("true", "min_build=new")).minBuild)
+        assertEquals("§eUpdate %need%", ModGateFile.parse(listOf("true", "update_message=&eUpdate %need%")).updateMessage)
     }
 }

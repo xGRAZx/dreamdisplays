@@ -62,6 +62,18 @@ class AudioRangeFeaturesTest {
         assertEquals(9.0, f.profileFor(UUID.randomUUID(), "4,70,-12").first.range)
         assertEquals("ULTRA", f.view.acoustics)
         assertEquals(ViewOverride(volume = 0.5, brightness = 1.0), f.view.displays[id])
+        // The old plugin never fixed the brightness of screens without their own value.
+        assertEquals(null, f.view.playerBrightness)
+    }
+
+    @Test
+    fun playerBrightnessRoundTrips() {
+        for (b in listOf(null, 0.0, 1.0, 1.75)) {
+            val features = AudioRangeFeatures(viewSupported = true, view = ViewSettings(playerBrightness = b))
+            assertEquals(b, AudioRangeFeatures.fromWire(features.toWire()).view.playerBrightness)
+        }
+        assertEquals(2.0, AudioRangeFeatures.fromWire(listOf("view_ui", "view_bri:9")).view.playerBrightness)
+        assertEquals(null, AudioRangeFeatures.fromWire(listOf("view_ui", "view_bri:bright")).view.playerBrightness)
     }
 
     @Test

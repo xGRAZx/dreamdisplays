@@ -28,8 +28,25 @@ object AudioRangeProtocol {
 
     val TYPES: Set<Int> = setOf(TYPE_RANGE, TYPE_ZONE, TYPE_HELLO, TYPE_VIEW)
 
-    /** The hello text; the number is the extension revision, informative only. */
-    const val HELLO = "hello|16"
+    /**
+     * Release number of this mod and plugin, continuing the audiorange 1-21 builds. Raise it with every
+     * release: the release workflow checks that the tag (`ar<BUILD>`) matches, and the plugin reminds
+     * players whose mod reports a lower number.
+     */
+    const val BUILD = 22
+
+    /**
+     * The hello text: `hello|<extension revision>|<build>`. The audiorange 1-21 mods send only the
+     * revision, so a missing build means one of those.
+     */
+    const val HELLO = "hello|16|$BUILD"
+
+    /** Build number of the audiorange 1-21 mods, which send no build in their hello. */
+    const val LEGACY_BUILD = 21
+
+    /** The build a client reported in its hello [text], or [LEGACY_BUILD] when it sent none. */
+    fun helloBuild(text: String): Int =
+        text.split('|').getOrNull(2)?.trim()?.toIntOrNull()?.takeIf { it > 0 } ?: LEGACY_BUILD
 
     /** Wraps [text] in an envelope of [type]. */
     fun frame(type: Int, text: String): ByteArray {

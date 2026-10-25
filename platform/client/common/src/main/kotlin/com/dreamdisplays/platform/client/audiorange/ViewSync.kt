@@ -17,7 +17,8 @@ import kotlin.math.abs
 /**
  * Volume, brightness, quality and the 3D sound mode an audiorange server forces on every viewer.
  *
- * Players follow the server and cannot change these. A sound admin changes them with the usual menu
+ * Players follow the server and cannot change these; on screens without their own brightness, players
+ * also get the server-wide player brightness (100 % unless the server turns it off). A sound admin changes them with the usual menu
  * controls: each change is sent to the server (debounced), which saves it and pushes it to everyone.
  * An admin's own screen only takes a server value when it is new, so the admin's slider never jumps
  * back while they are still dragging it.
@@ -37,6 +38,10 @@ object ViewSync {
     @Volatile
     private var supported = false
 
+    /** Brightness the server holds players to on screens without their own, or null when players choose. */
+    @Volatile
+    private var playerBrightness: Double? = null
+
     @Volatile
     private var serverAcoustics: AcousticQuality? = null
     private var acousticsRev = 0L
@@ -50,11 +55,20 @@ object ViewSync {
     val locked: Boolean get() = supported && !AudioRangeClient.isSoundAdmin
 
     /** What the server forces on [id] for this player, or null when the player is free to choose. */
-    fun forced(id: UUID): ViewOverride? = if (locked) entries[id]?.view else null
+    fun forced(id: UUID): ViewOverride? = if (locked) playerView(id) else null
+
+    /** A player's forced values for [id]: the screen's own, with the server-wide brightness filling in. */
+    private fun playerView(id: UUID): ViewOverride? {
+        val own = entries[id]?.view
+        val brightness = own?.brightness ?: playerBrightness
+        val view = (own ?: ViewOverride()).copy(brightness = brightness)
+        return view.takeUnless { it.isEmpty }
+    }
 
     @Synchronized
     fun onFeatures(f: AudioRangeFeatures) {
         supported = f.viewSupported
+        playerBrightness = f.view.playerBrightness
         val fresh = f.view.displays
         for ((id, view) in fresh) {
             val old = entries[id]
@@ -71,6 +85,7 @@ object ViewSync {
     fun reset() {
         supported = false
         serverAcoustics = null
+        playerBrightness = null
         acousticsApplied = -1L
         entries.clear()
         applied.clear()
@@ -96,13 +111,15 @@ object ViewSync {
         flushPending()
         applyAcoustics()
         if (!supported) return
-        val e = entries[ds.uuid] ?: return
-        if (AudioRangeClient.isSoundAdmin) {
-            if (applied[ds.uuid] == e.rev) return
-            applied[ds.uuid] = e.rev
-            val sent = lastSent[ds.uuid]
-            if (sent != null && System.currentTimeMillis() - sent < ECHO_MS) return
+        if (!AudioRangeClient.isSoundAdmin) {
+            playerView(ds.uuid)?.let { apply(ds, it) }
+            return
         }
+        val e = entries[ds.uuid] ?: return
+        if (applied[ds.uuid] == e.rev) return
+        applied[ds.uuid] = e.rev
+        val sent = lastSent[ds.uuid]
+        if (sent != null && System.currentTimeMillis() - sent < ECHO_MS) return
         apply(ds, e.view)
     }
 

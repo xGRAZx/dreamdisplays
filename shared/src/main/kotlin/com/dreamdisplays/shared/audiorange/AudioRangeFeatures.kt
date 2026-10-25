@@ -10,7 +10,9 @@ import java.util.UUID
  *   `audio_absorb_carpet:<n>`, `audio_d:<uuid or x,y,z>:range=<n>;sf=<n>;…` (sound range);
  * - `view_ui`, `view_g:a3=<mode>[;by=<uuid>]`, `view_d:<uuid>:v=<n>;b=<n>;q=<q>[;by=<uuid>]` (forced view);
  * - `audio_rev:<n>` and `audio_admin` (new in the source rewrite; older mods ignore them): the plugin
- *   revision, and the flag sent only to players allowed to edit.
+ *   revision, and the flag sent only to players allowed to edit;
+ * - `view_bri:<n>` (revision 3): the brightness players get on screens without their own. Without it
+ *   players choose, which is also what older plugins mean.
  */
 @Unstable
 data class AudioRangeFeatures(
@@ -50,6 +52,7 @@ data class AudioRangeFeatures(
         if (viewSupported) {
             add(VIEW_UI)
             view.acoustics?.let { add("${VIEW_GLOBAL}a3=$it") }
+            view.playerBrightness?.let { add("$VIEW_BRIGHTNESS${fmt3(it)}") }
             view.displays.forEach { (id, o) ->
                 if (o.isEmpty) return@forEach
                 val parts = buildList {
@@ -67,7 +70,7 @@ data class AudioRangeFeatures(
         const val RANGE_UI = "audio_ui"
         const val VIEW_UI = "view_ui"
         const val SOUND_ADMIN = "audio_admin"
-        const val CURRENT_REVISION = 2
+        const val CURRENT_REVISION = 3
         private const val REVISION = "audio_rev:"
         private const val RANGE_GLOBAL = "audio_range:"
         private const val ABSORB_WOOL = "audio_absorb_wool:"
@@ -75,6 +78,7 @@ data class AudioRangeFeatures(
         private const val RANGE_DISPLAY = "audio_d:"
         private const val VIEW_GLOBAL = "view_g:"
         private const val VIEW_DISPLAY = "view_d:"
+        private const val VIEW_BRIGHTNESS = "view_bri:"
 
         /** True for tokens this extension owns, so they can be told apart from the original feature set. */
         fun isOwnToken(token: String): Boolean = token.startsWith("audio_") || token.startsWith("view_")
@@ -89,6 +93,7 @@ data class AudioRangeFeatures(
             var carpet = AudioRangeSettings.DEFAULT_ABSORB_CARPET
             val sections = LinkedHashMap<String, RangeOverride>()
             var a3: String? = null
+            var playerBrightness: Double? = null
             val views = LinkedHashMap<UUID, ViewOverride>()
 
             for (token in tokens) {
@@ -107,6 +112,8 @@ data class AudioRangeFeatures(
                         token.startsWith(VIEW_GLOBAL) -> pairs(token.substring(VIEW_GLOBAL.length))["a3"]?.let {
                             a3 = ViewSettingsFile.normalizeAcoustics(it)
                         }
+                        token.startsWith(VIEW_BRIGHTNESS) -> playerBrightness = token.substring(VIEW_BRIGHTNESS.length).trim()
+                            .toDouble().takeUnless { it.isNaN() }?.coerceIn(0.0, ViewSettingsFile.MAX_BRIGHTNESS)
                         token.startsWith(VIEW_DISPLAY) -> parseViewSection(token.substring(VIEW_DISPLAY.length))?.let {
                             views[it.first] = it.second
                         }
@@ -124,7 +131,7 @@ data class AudioRangeFeatures(
                 soundAdmin = admin,
                 revision = revision,
                 range = AudioRangeSettings(global, wool, carpet, sections),
-                view = ViewSettings(a3, views),
+                view = ViewSettings(a3, views, playerBrightness),
             )
         }
 

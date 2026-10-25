@@ -266,6 +266,9 @@ object DisplayActions {
 
     /** Tells [player] about a newer mod version if they haven't been notified this session. */
     private fun checkModUpdate(player: Player, userVersion: Semver) {
+        // The newest upstream release lacks the audiorange features, so pointing players at it would make
+        // them lose sound limits. ModGate reminds them about newer audiorange builds instead.
+        if (AUDIORANGE_REPLACES_MOD_UPDATE_CHECK) return
         val latestVersion = VersionState.modLatestVersion ?: return
 
         if (userVersion < latestVersion && !PlayerManager.hasBeenNotifiedAboutModUpdate(player)) {
@@ -273,6 +276,8 @@ object DisplayActions {
             PlayerManager.setModUpdateNotified(player, true)
         }
     }
+
+    private const val AUDIORANGE_REPLACES_MOD_UPDATE_CHECK = true
 
     /** Tells privileged [player] about a newer plugin release; skipped for `-SNAPSHOT` builds. */
     private fun checkPluginUpdate(player: Player) {

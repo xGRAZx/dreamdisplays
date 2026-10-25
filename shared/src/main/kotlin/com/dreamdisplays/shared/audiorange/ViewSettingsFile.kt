@@ -14,13 +14,23 @@ data class ViewOverride(
     val isEmpty: Boolean get() = volume == null && brightness == null && quality == null
 }
 
-/** `display_view.txt`: the server-wide 3D sound mode and the per-screen forced view values. */
+/** `display_view.txt`: the server-wide 3D sound mode and brightness, and the per-screen forced view values. */
 @Unstable
 data class ViewSettings(
     /** `OFF`, `BASIC`, `ADVANCED` or `ULTRA`, or null when the server does not force one. */
     val acoustics: String? = null,
     val displays: Map<UUID, ViewOverride> = emptyMap(),
-)
+    /**
+     * Brightness players get on every screen without its own brightness, or null when players choose
+     * it themselves. Sound admins are never held to it.
+     */
+    val playerBrightness: Double? = DEFAULT_PLAYER_BRIGHTNESS,
+) {
+    companion object {
+        /** Players see screens at 100 % unless the file says otherwise, as with the audiorange 1-21 player mod. */
+        const val DEFAULT_PLAYER_BRIGHTNESS = 1.0
+    }
+}
 
 /** One change an admin made from the game, as sent in a view-settings message. */
 @Unstable
@@ -43,6 +53,7 @@ object ViewSettingsFile {
         "# Set from the game by an admin (permission dreamdisplays.audio) with the usual screen menu sliders,",
         "# and forced on every player: players can not change them.",
         "# a3 - 3D sound mode for everyone: OFF, ADVANCED (Enhanced) or ULTRA (Advanced). Without the line players get ULTRA (Advanced).",
+        "# brightness - brightness (0-2) players get on screens without their own; 1 = 100 %. off = players choose it.",
         "# [display <uuid>] sections: volume (0-4), brightness (0-2), quality (auto or a height like 1080).",
         "# A key that is missing is not forced. Delete a section (or a line) to stop forcing it.",
     )
@@ -61,6 +72,7 @@ object ViewSettingsFile {
 
     fun parse(lines: List<String>): ViewSettings {
         var acoustics: String? = null
+        var playerBrightness: Double? = ViewSettings.DEFAULT_PLAYER_BRIGHTNESS
         val displays = LinkedHashMap<UUID, ViewOverride>()
         var current: UUID? = null
         var inSection = false
@@ -81,7 +93,10 @@ object ViewSettingsFile {
             val key = line.substring(0, eq).trim().lowercase(Locale.ROOT)
             val value = line.substring(eq + 1).trim()
             if (!inSection) {
-                if (key == "a3") normalizeAcoustics(value)?.let { acoustics = it }
+                when (key) {
+                    "a3" -> normalizeAcoustics(value)?.let { acoustics = it }
+                    "brightness" -> parsePlayerBrightness(value)?.let { playerBrightness = it.getOrNull() }
+                }
                 continue
             }
             val id = current ?: continue
@@ -93,13 +108,23 @@ object ViewSettingsFile {
                 else -> old
             }
         }
-        return ViewSettings(acoustics, displays)
+        return ViewSettings(acoustics, displays, playerBrightness)
     }
+
+    /** `off` gives a success holding null (players choose); a number its clamped value; anything else null (ignored). */
+    private fun parsePlayerBrightness(value: String): Result<Double?>? {
+        if (value.lowercase(Locale.ROOT) in FREE_WORDS) return Result.success(null)
+        val n = value.toDoubleOrNull()?.takeUnless { it.isNaN() } ?: return null
+        return Result.success(n.coerceIn(0.0, MAX_BRIGHTNESS))
+    }
+
+    private val FREE_WORDS = setOf("off", "false", "no", "none", "free")
 
     fun render(settings: ViewSettings): List<String> = buildList {
         addAll(HEADER)
         add("")
         settings.acoustics?.let { add("a3=$it") }
+        add("brightness=${settings.playerBrightness?.let { fmt(it) } ?: "off"}")
         settings.displays.forEach { (id, o) ->
             if (o.isEmpty) return@forEach
             add("")

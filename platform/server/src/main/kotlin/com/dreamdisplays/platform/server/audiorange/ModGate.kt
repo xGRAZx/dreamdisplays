@@ -4,6 +4,7 @@ import com.dreamdisplays.core.protocol.common.packets.DreamPacket
 import com.dreamdisplays.core.protocol.common.packets.ServerHello
 import com.dreamdisplays.platform.server.meta.Scheduler
 import com.dreamdisplays.platform.server.utils.net.DisplayActions
+import com.dreamdisplays.shared.audiorange.AudioRangeProtocol
 import com.dreamdisplays.shared.audiorange.ModGateFile
 import com.dreamdisplays.shared.audiorange.ModGateSettings
 import io.github.arnodoelinger.platformweaver.PaperOnly
@@ -20,13 +21,17 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * `mod_required.txt`: hides every screen from players whose client did not identify as the audiorange
- * mod, so nobody hears a screen without the server's sound limits. Players are told how to get the mod.
+ * mod, so nobody hears a screen without the server's sound limits. Players are told how to get the mod,
+ * and players with an older build of it are reminded to update. Each message is sent once per join:
+ * the client repeats its protocol hello on every world change, which must not repeat the messages.
  */
 @PaperOnly
 @NullMarked
 internal class ModGate(dataFolder: File) {
     private val file = SettingsFile(File(dataFolder, ModGateFile.FILE_NAME), { ModGateFile.DEFAULT_LINES }, parse = ModGateFile::parse)
     private val verified: MutableSet<UUID> = ConcurrentHashMap.newKeySet()
+    private val noticeSent: MutableSet<UUID> = ConcurrentHashMap.newKeySet()
+    private val reminderSent: MutableSet<UUID> = ConcurrentHashMap.newKeySet()
 
     val settings: ModGateSettings get() = file.get()
 
@@ -39,30 +44,42 @@ internal class ModGate(dataFolder: File) {
         return if (players.all { it == null || allowed(it) }) players else players.filter { it != null && allowed(it) }
     }
 
-    /** A client sent the protocol hello: forget any earlier verification and warn it later if it never identifies. */
+    /**
+     * A client sent the protocol hello: on join, and again after every world change. Warn it once per
+     * join if it never identifies as the audiorange mod.
+     */
     fun onClientHello(player: Player) {
-        verified.remove(player.uniqueId)
-        if (!settings.enabled) return
+        if (!settings.enabled || player.uniqueId in verified) return
         Scheduler.runPlayerLater(player, NOTICE_DELAY_TICKS) {
-            if (player.uniqueId !in verified && !allowed(player)) notify(player, settings)
+            if (player.uniqueId !in verified && !allowed(player) && noticeSent.add(player.uniqueId)) {
+                notify(player, settings.message, settings.messageEn, settings)
+            }
         }
     }
 
-    /** The client identified as the audiorange mod: let it in and send it the screens it was denied. */
-    fun onModHello(player: Player) {
+    /** The client identified as the audiorange mod: let it in, send it the screens it was denied, and remind it to update if old. */
+    fun onModHello(player: Player, text: String) {
         if (verified.add(player.uniqueId)) DisplayActions.sendAllDisplays(player)
+        val s = settings
+        val build = AudioRangeProtocol.helloBuild(text)
+        if (build < s.requiredBuild && reminderSent.add(player.uniqueId)) {
+            fun fill(t: String) = t.replace("%have%", build.toString()).replace("%need%", s.requiredBuild.toString())
+            notify(player, fill(s.updateMessage), fill(s.updateMessageEn), s)
+        }
     }
 
     fun forget(player: UUID) {
         verified.remove(player)
+        noticeSent.remove(player)
+        reminderSent.remove(player)
     }
 
-    private fun notify(player: Player, s: ModGateSettings) {
+    private fun notify(player: Player, text: String, textEn: String, s: ModGateSettings) {
         val legacy = LegacyComponentSerializer.legacySection()
         var message = Component.empty()
-            .append(legacy.deserialize(s.message).colorIfAbsent(NamedTextColor.RED))
+            .append(legacy.deserialize(text).colorIfAbsent(NamedTextColor.RED))
             .append(Component.newline())
-            .append(legacy.deserialize(s.messageEn).colorIfAbsent(NamedTextColor.GRAY))
+            .append(legacy.deserialize(textEn).colorIfAbsent(NamedTextColor.GRAY))
         if (s.downloadUrl.isNotEmpty()) {
             message = message.append(Component.newline()).append(
                 Component.text("[ ${s.buttonLabel} ]", NamedTextColor.AQUA)

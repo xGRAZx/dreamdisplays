@@ -71,7 +71,7 @@ object AudioRangeServer {
     fun filter(players: List<Player?>, packet: DreamPacket): List<Player?> =
         runCatching { gate.filter(players, packet) }.getOrDefault(players)
 
-    /** The client sent the protocol hello (a fresh join or a reconnect). */
+    /** The client sent the protocol hello (on join and after every world change). */
     fun onClientHello(player: Player) {
         runCatching { gate.onClientHello(player) }.onFailure { logger.warn("Mod gate hello failed", it) }
     }
@@ -88,7 +88,7 @@ object AudioRangeServer {
         val text = AudioRangeProtocol.unframe(message)?.second ?: return true
         runCatching {
             when (type) {
-                AudioRangeProtocol.TYPE_HELLO -> gate.onModHello(player)
+                AudioRangeProtocol.TYPE_HELLO -> gate.onModHello(player, text)
                 AudioRangeProtocol.TYPE_RANGE -> RangeMessage.decode(text)?.let { handleRange(player, it) }
                 AudioRangeProtocol.TYPE_ZONE -> ZoneMessage.decode(text)?.let { zones.handle(player, it, isSoundAdmin(player)) }
                 AudioRangeProtocol.TYPE_VIEW -> ViewMessage.decode(text)?.let { handleView(player, it) }

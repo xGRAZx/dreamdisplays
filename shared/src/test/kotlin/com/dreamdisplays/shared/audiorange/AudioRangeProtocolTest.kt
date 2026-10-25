@@ -99,4 +99,14 @@ class AudioRangeProtocolTest {
         assertNull(ViewMessage.decode("v|$id|vol|loud"))
         assertTrue(ViewMessage.decode("x|$id|vol|0.5") == null)
     }
+
+    @Test
+    fun helloCarriesTheBuild() {
+        assertEquals(AudioRangeProtocol.BUILD, AudioRangeProtocol.helloBuild(AudioRangeProtocol.HELLO))
+        // The audiorange 1-21 mods send only the extension revision.
+        assertEquals(AudioRangeProtocol.LEGACY_BUILD, AudioRangeProtocol.helloBuild("hello|16"))
+        assertEquals(AudioRangeProtocol.LEGACY_BUILD, AudioRangeProtocol.helloBuild("hello"))
+        assertEquals(AudioRangeProtocol.LEGACY_BUILD, AudioRangeProtocol.helloBuild("hello|16|x"))
+        assertEquals(30, AudioRangeProtocol.helloBuild("hello|16|30|future"))
+    }
 }
