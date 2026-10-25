@@ -143,5 +143,9 @@
   "dreamdisplays.audio.view_side": "Вид сбоку",
   "dreamdisplays.audio.zone": "Показать зону в мире",
   "dreamdisplays.audio.tip.zone": "Рисует зону звука частицами вокруг экрана (оранжевая: где звук заканчивается, зелёная: где начинает слабеть). Только для этого экрана, другие экраны включаются отдельно. Видите только вы. Частицы не видно сквозь стены.",
-  "dreamdisplays.audio.locked": "Эту настройку задаёт администратор сервера для всех."
+  "dreamdisplays.audio.locked": "Эту настройку задаёт администратор сервера для всех.",
+  "dreamdisplays.report.title": "Отчёт Dream Displays:",
+  "dreamdisplays.report.copied": "Полный отчёт скопирован. Вставьте его (Ctrl+V) и отправьте администратору сервера. Он также сохранён в logs/dreamdisplays-report.txt.",
+  "dreamdisplays.report.saved": "Полный отчёт сохранён в logs/dreamdisplays-report.txt. Отправьте этот файл администратору сервера.",
+  "dreamdisplays.report.failed": "Не удалось скопировать или сохранить отчёт; он есть в логе игры (logs/latest.log)."
 }

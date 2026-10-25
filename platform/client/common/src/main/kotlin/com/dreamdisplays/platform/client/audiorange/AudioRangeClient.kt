@@ -37,6 +37,9 @@ object AudioRangeClient {
 
     val serverHasEditor: Boolean get() = features.rangeSupported
 
+    /** True once this connection's server settings (or the lack of an audiorange plugin) are known. */
+    val settingsReceived: Boolean get() = helloReceived
+
     /** Called for every `ServerHello` (join, and again whenever an admin saves a change). */
     fun onServerHello(hello: ServerHello) {
         val parsed = AudioRangeFeatures.fromWire(hello.allowedFeatures)

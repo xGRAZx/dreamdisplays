@@ -40,6 +40,7 @@ import com.dreamdisplays.platform.client.audiorange.ViewSync
 import com.dreamdisplays.platform.client.core.DreamServices
 import com.dreamdisplays.platform.client.displays.DisplayScreen.Companion.DEFAULT_QUALITY
 import com.dreamdisplays.platform.client.displays.DisplayScreen.Companion.ENV_PROBE_INTERVAL_TICKS
+import com.dreamdisplays.platform.client.managers.PerformanceGovernor
 import com.dreamdisplays.platform.client.managers.ClientPacketManager
 import com.dreamdisplays.platform.client.managers.ClientStateManager
 import com.dreamdisplays.platform.client.managers.DisplayPopoutManager
@@ -386,6 +387,21 @@ class DisplayScreen(
     /** How many rungs down [QUALITY_LADDER] the current distance has pushed the effective quality; 0 when close. */
     private var distanceQualitySteps = 0
 
+    /** [PerformanceGovernor.qualitySteps] as last applied to this display, so a change re-pushes the quality. */
+    private var performanceQualitySteps = 0
+
+    /** [System.nanoTime] of the last frame this display was inside the view; starts at creation. */
+    private var lastSeenNanos = System.nanoTime()
+
+    /** Called by the renderer for every frame in which this display is inside the view. */
+    internal fun markSeen() {
+        lastSeenNanos = System.nanoTime()
+    }
+
+    /** True once the display has been out of view (behind the player, or the game not drawing) for a while. */
+    internal val hiddenForAWhile: Boolean
+        get() = HIDDEN_LOD_ENABLED && System.nanoTime() - lastSeenNanos > HIDDEN_LOD_AFTER_NANOS
+
     /**
      * Highest quality (pixel height) the display's on-screen size warrants, capping the effective quality;
      * never below [SIZE_LOD_MIN_HEIGHT], and 0 while no cap applies. Independent of the requested quality,
@@ -402,9 +418,11 @@ class DisplayScreen(
         while (steps < DISTANCE_STEP_THRESHOLDS.size && fraction >= DISTANCE_STEP_THRESHOLDS[steps]) steps++
         while (steps > 0 && fraction < DISTANCE_STEP_THRESHOLDS[steps - 1] - DISTANCE_STEP_HYSTERESIS) steps--
         val lod = nextSizeLodHeight(distance)
-        if (steps == distanceQualitySteps && lod == sizeLodHeight) return
+        val performance = PerformanceGovernor.qualitySteps
+        if (steps == distanceQualitySteps && lod == sizeLodHeight && performance == performanceQualitySteps) return
         distanceQualitySteps = steps
         sizeLodHeight = lod
+        performanceQualitySteps = performance
         reloadQuality()
     }
 
@@ -413,7 +431,9 @@ class DisplayScreen(
      * converting and uploading. Sharpening happens right away (with a hysteresis band); softening waits out
      * [SIZE_LOD_DWELL_NANOS] so walking past doesn't churn streams. Once playing, a paused picture holds its
      * resolution (a switch would blank it) and a live stream only ever sharpens, after the same dwell, since
-     * each live switch restarts it.
+     * each live switch restarts it. A display nobody has seen for [HIDDEN_LOD_AFTER_NANOS] (it is behind the
+     * player) is sized as if it were tiny, so its sound plays on while its picture costs little; it sharpens
+     * as soon as it comes back into view.
      */
     private fun nextSizeLodHeight(distance: Double): Int {
         // A fullscreen broadcast's synthetic display has no meaningful world position to size by
@@ -424,7 +444,7 @@ class DisplayScreen(
 
         val base = (if (qualityCap > 0) qualityCap else quality.targetHeight) ?: DEFAULT_QUALITY
         val current = if (sizeLodHeight <= 0) base else min(sizeLodHeight, base)
-        val neededPx = height * focalLengthPx() / max(distance, 1.0) * SIZE_LOD_OVERSAMPLE
+        val neededPx = if (hiddenForAWhile) 0.0 else height * focalLengthPx() / max(distance, 1.0) * SIZE_LOD_OVERSAMPLE
         val strict = min(base, lodRungFor(neededPx))
         val relaxed = min(base, lodRungFor(neededPx * SIZE_LOD_UP_HYSTERESIS))
 
@@ -469,9 +489,9 @@ class DisplayScreen(
         return QUALITY_LADDER[0]
     }
 
-    /** Moves [base] down [distanceQualitySteps] rungs in [QUALITY_LADDER]; a no-op at 0 steps. */
+    /** Moves [base] down the distance and performance steps in [QUALITY_LADDER]; a no-op at 0 steps. */
     private fun applyDistanceSteps(base: VideoQuality): VideoQuality {
-        val stepsDown = distanceQualitySteps
+        val stepsDown = distanceQualitySteps + performanceQualitySteps
         if (stepsDown <= 0) return base
         val baseHeight = base.targetHeight ?: DEFAULT_QUALITY
         val idx = QUALITY_LADDER.indexOfFirst { it <= baseHeight }.let { if (it < 0) QUALITY_LADDER.lastIndex else it }
@@ -1299,7 +1319,7 @@ class DisplayScreen(
      * Server-set sound limits for this tick (audiorange range fade x wool / carpet absorption), `0`..`1`.
      * A popout plays for the viewer alone, so no limit applies to it.
      */
-    private fun rangeGain(): Double {
+    internal fun rangeGain(): Double {
         if (isPopoutActive) return 1.0
         return AudioRangeClient.gainFor(uuid, x, y, z, sourcePlane(), ListenerPoseTracker.currentPose(Minecraft.getInstance()))
     }
@@ -1314,9 +1334,10 @@ class DisplayScreen(
         restoreAudioTrackIfPending()
         restoreSubtitleTrackIfPending()
         if (isPopoutActive) {
-            if (distanceQualitySteps != 0 || sizeLodHeight != 0) {
+            if (distanceQualitySteps != 0 || sizeLodHeight != 0 || performanceQualitySteps != 0) {
                 distanceQualitySteps = 0
                 sizeLodHeight = 0
+                performanceQualitySteps = 0
                 sizeLodSinceNanos = 0L
                 reloadQuality()
             }
@@ -1430,6 +1451,13 @@ class DisplayScreen(
 
         /** The size LOD never steps below this height (the ladder itself goes lower for the far-distance steps). */
         private const val SIZE_LOD_MIN_HEIGHT = 360
+
+        /** Kill switch: `-Ddreamdisplays.lod.hidden=false` keeps displays behind the player at their usual quality. */
+        private val HIDDEN_LOD_ENABLED: Boolean =
+            System.getProperty("dreamdisplays.lod.hidden")?.toBooleanStrictOrNull() ?: true
+
+        /** How long a display must stay out of view before [hiddenForAWhile] lowers its quality. */
+        private const val HIDDEN_LOD_AFTER_NANOS = 10_000_000_000L
 
         /** Sharpening needs this much more on-screen size than softening did, so a boundary doesn't flip-flop. */
         private const val SIZE_LOD_UP_HYSTERESIS = 1.3

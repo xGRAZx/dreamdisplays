@@ -143,5 +143,9 @@
   "dreamdisplays.audio.view_side": "Side view",
   "dreamdisplays.audio.zone": "Show zone in the world",
   "dreamdisplays.audio.tip.zone": "Draws the sound zone with particles around the screen (orange: where sound ends, green: where it starts to fade). Only for this screen, other screens are toggled separately. Only you see it. Particles are hidden behind walls.",
-  "dreamdisplays.audio.locked": "Set by the server admin for everyone."
+  "dreamdisplays.audio.locked": "Set by the server admin for everyone.",
+  "dreamdisplays.report.title": "Dream Displays report:",
+  "dreamdisplays.report.copied": "The full report is copied. Paste it (Ctrl+V) to the server admin. It is also saved in logs/dreamdisplays-report.txt.",
+  "dreamdisplays.report.saved": "The full report is saved in logs/dreamdisplays-report.txt. Send this file to the server admin.",
+  "dreamdisplays.report.failed": "The report could not be copied or saved; it is in the game log (logs/latest.log)."
 }
