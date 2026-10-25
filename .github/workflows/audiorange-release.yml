@@ -1,14 +1,14 @@
-name: Audiorange release
+name: AltDisplays release
 
-# Publishes an audiorange build for the server owner and players: a GitHub release with just the
-# Minecraft 1.21.11 mod and the Paper plugin, under a link that always points at the newest one
-# (https://github.com/<owner>/dreamdisplays/releases/latest). Runs for `ar<build>` tags, where
-# <build> must equal AudioRangeProtocol.BUILD, after the same build and smoke tests as CI.
+# Publishes an AltDisplays build (Dream Displays with the audiorange features) for the server owner
+# and players: a GitHub release with just the Minecraft 1.21.11 mod and the Paper plugin, under a
+# link that always points at the newest one (https://github.com/<owner>/dreamdisplays/releases/latest).
+# Runs for `alt-<version>` tags (alt-1.0, alt-1.1, ...) after the same build and smoke tests as CI.
 # A PR that changes this file runs everything except the publish step, as a dry run.
 on:
   push:
     tags:
-      - 'ar*'
+      - 'alt-*'
   pull_request:
     paths:
       - .github/workflows/audiorange-release.yml
@@ -26,13 +26,14 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       build: ${{ steps.check.outputs.build }}
+      release: ${{ steps.check.outputs.release }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6.0.3
         with:
           fetch-depth: 1
 
-      - name: Compare the tag with AudioRangeProtocol.BUILD
+      - name: Read the version from the tag
         id: check
         run: |
           build=$(sed -n 's/^ *const val BUILD = \([0-9]\+\)$/\1/p' \
@@ -41,11 +42,16 @@ jobs:
             echo "::error::AudioRangeProtocol.BUILD not found."
             exit 1
           fi
-          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" != "ar$build" ]; then
-            echo "::error::Tag $GITHUB_REF_NAME does not match AudioRangeProtocol.BUILD = $build (expected ar$build)."
-            exit 1
+          release=0.0-dryrun
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            release="${GITHUB_REF_NAME#alt-}"
+            if ! printf '%s' "$release" | grep -Eq '^[0-9]+(\.[0-9]+)+$'; then
+              echo "::error::Tag $GITHUB_REF_NAME is not alt-<version>, like alt-1.0."
+              exit 1
+            fi
           fi
           echo "build=$build" >> "$GITHUB_OUTPUT"
+          echo "release=$release" >> "$GITHUB_OUTPUT"
 
   build:
     needs: check-tag
@@ -62,7 +68,7 @@ jobs:
       paper_build_version: ${{ needs.build.outputs.paper_build_version }}
 
   release:
-    name: Publish audiorange ${{ needs.check-tag.outputs.build }}
+    name: Publish AltDisplays ${{ needs.check-tag.outputs.release }}
     runs-on: ubuntu-latest
     needs: [ check-tag, build, smoke ]
     permissions:
@@ -70,6 +76,7 @@ jobs:
     env:
       MC: '1.21.11'
       BUILD: ${{ needs.check-tag.outputs.build }}
+      RELEASE: ${{ needs.check-tag.outputs.release }}
       VERSION: ${{ needs.build.outputs.version }}
     steps:
       - name: Download the 1.21.11 jars
@@ -81,22 +88,22 @@ jobs:
       - name: Name the files
         run: |
           mkdir release
-          cp "jars/dreamdisplays-fabric-$MC-$VERSION.jar" "release/dreamdisplays-fabric-$MC-audiorange$BUILD.jar"
+          cp "jars/dreamdisplays-fabric-$MC-$VERSION.jar" "release/AltDisplays-$RELEASE-$MC-Fabric-by-GRAZ.jar"
           paper=$(ls jars/dreamdisplays-paper-*.jar | grep -Ev -- '-(sources|javadoc|dev-shadow)\.jar$' | head -1)
           if [ -z "$paper" ]; then
             echo "::error::No Paper plugin jar in build-jars-$MC."
             exit 1
           fi
-          cp "$paper" "release/dreamdisplays-paper-audiorange$BUILD.jar"
+          cp "$paper" "release/AltDisplays-$RELEASE-$MC-Paper-by-GRAZ.jar"
           ls -l release
 
       - name: Write the release notes
         run: |
           cat > notes.md <<EOF
-          Dream Displays **audiorange $BUILD** for Minecraft $MC.
+          **AltDisplays $RELEASE** for Minecraft $MC, by GRAZ (Dream Displays $VERSION with audiorange build $BUILD).
 
-          - \`dreamdisplays-fabric-$MC-audiorange$BUILD.jar\`: the mod, for everyone (players and admins). Put it in \`mods\`.
-          - \`dreamdisplays-paper-audiorange$BUILD.jar\`: the server plugin. Put it in \`plugins\`.
+          - \`AltDisplays-$RELEASE-$MC-Fabric-by-GRAZ.jar\`: the mod, for everyone (players and admins). Put it in \`mods\`.
+          - \`AltDisplays-$RELEASE-$MC-Paper-by-GRAZ.jar\`: the server plugin. Put it in \`plugins\`.
 
           Use the mod and the plugin from the same release. Admin features need the permission \`dreamdisplays.audio\`.
 
@@ -108,7 +115,7 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" release/*.jar \
             --repo "$GITHUB_REPOSITORY" \
-            --title "audiorange $BUILD (Minecraft $MC)" \
+            --title "AltDisplays $RELEASE (Minecraft $MC)" \
             --notes-file notes.md \
             --latest
         env:
