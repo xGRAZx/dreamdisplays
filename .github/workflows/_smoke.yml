@@ -47,7 +47,12 @@ jobs:
       - name: Run unit tests
         run: |
           chmod +x ./gradlew
-          ./gradlew :shared:test :media:audio:test --no-daemon --continue
+          # Share links (Google Drive, Dropbox, ...) and the Google Drive download proxy come from upstream;
+          # their tests run here too so a merge that breaks them shows up before a release.
+          ./gradlew :shared:test :media:audio:test \
+            :api:test --tests '*CustomMediaUrlsTest' \
+            :media:player:test --tests '*RangeProxyServerTest' \
+            --no-daemon --continue
         env:
           GRADLE_OPTS: -Dorg.gradle.daemon=false -Xmx4G
 
@@ -59,6 +64,8 @@ jobs:
           path: |
             shared/build/reports/tests
             media/audio/build/reports/tests
+            api/build/reports/tests
+            media/player/build/reports/tests
           retention-days: 7
 
   fabric-server:
