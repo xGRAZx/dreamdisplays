@@ -269,7 +269,7 @@ class DisplayScreen(
         set(value) {
             field = value
             applyEffectiveVolume()
-            ClientSettingsStore.updateSettings(uuid, value, quality, brightness, muted, paused)
+            saveSettings()
             DisplayRegistry.recordScreen(this)
         }
 
@@ -278,7 +278,7 @@ class DisplayScreen(
         set(value) {
             field = value.coerceIn(0f, 2f)
             mediaPlayer?.setBrightness(field)
-            ClientSettingsStore.updateSettings(uuid, volume, quality, field, muted, paused)
+            saveSettings()
             DisplayRegistry.recordScreen(this)
         }
 
@@ -287,11 +287,54 @@ class DisplayScreen(
         set(value) {
             field = value
             mediaPlayer?.setQuality(effectiveQuality(value), userInitiated = qualityWriteIsViewerAction)
-            ClientSettingsStore.updateSettings(uuid, volume, value, brightness, muted, paused)
+            saveSettings()
             DisplayRegistry.recordScreen(this)
         }
 
     private var qualityWriteIsViewerAction = false
+
+    /**
+     * The viewer's own volume, brightness and quality while a server forces another value on this display
+     * (see [applyForcedView]); null while that one is not forced. These, not the forced values, are what
+     * gets saved, so a server never overwrites the viewer's own settings.
+     */
+    private var ownVolume: Float? = null
+    private var ownBrightness: Float? = null
+    private var ownQuality: VideoQuality? = null
+
+    private fun saveSettings() {
+        ClientSettingsStore.updateSettings(
+            uuid, ownVolume ?: volume, ownQuality ?: quality, ownBrightness ?: brightness, muted, paused,
+        )
+    }
+
+    /**
+     * Shows the values an audiorange server forces ([volume], [brightness], [quality]; null = not forced)
+     * without saving them. A value that stops being forced goes back to the viewer's own.
+     */
+    internal fun applyForcedView(volume: Float?, brightness: Float?, quality: VideoQuality?) {
+        if (volume != null) {
+            if (ownVolume == null) ownVolume = this.volume
+            if (abs(this.volume - volume) > 0.001f) this.volume = volume
+        } else ownVolume?.let {
+            ownVolume = null
+            this.volume = it
+        }
+        if (brightness != null) {
+            if (ownBrightness == null) ownBrightness = this.brightness
+            if (abs(this.brightness - brightness) > 0.001f) this.brightness = brightness
+        } else ownBrightness?.let {
+            ownBrightness = null
+            this.brightness = it
+        }
+        if (quality != null) {
+            if (ownQuality == null) ownQuality = this.quality
+            if (this.quality.serialize() != quality.serialize()) this.quality = quality
+        } else ownQuality?.let {
+            ownQuality = null
+            this.quality = it
+        }
+    }
 
     /**
      * Applies a viewer-chosen [value]. Identical to assigning [quality], except the player is told the
@@ -960,7 +1003,7 @@ class DisplayScreen(
         if (this.paused == paused) return
         this.paused = paused
         if (paused) mediaPlayer?.pause() else mediaPlayer?.play()
-        ClientSettingsStore.updateSettings(uuid, volume, quality, brightness, muted, paused)
+        saveSettings()
         DisplayRegistry.recordScreen(this)
     }
 
@@ -972,7 +1015,7 @@ class DisplayScreen(
         savedTimeNanos = positionNanos.coerceAtLeast(0L)
         if (paused) return
         paused = true
-        ClientSettingsStore.updateSettings(uuid, volume, quality, brightness, muted, paused)
+        saveSettings()
         DisplayRegistry.recordScreen(this)
     }
 
@@ -1054,7 +1097,7 @@ class DisplayScreen(
         if (muted == status) return
         muted = status
         applyEffectiveVolume()
-        ClientSettingsStore.updateSettings(uuid, volume, quality, brightness, muted, paused)
+        saveSettings()
         DisplayRegistry.recordScreen(this)
     }
 
@@ -1184,9 +1227,10 @@ class DisplayScreen(
      * Server-set sound limits for this tick (audiorange range fade x wool / carpet absorption), `0`..`1`.
      * A popout plays for the viewer alone, so no limit applies to it.
      */
-    internal fun rangeGain(): Double {
-        if (isPopoutActive) return 1.0
-        return AudioRangeClient.gainFor(uuid, x, y, z, sourcePlane(), ListenerPoseTracker.currentPose(Minecraft.getInstance()))
+    internal fun rangeGain(advance: Boolean = true): Double {
+        if (isPopoutActive || AudioRangeClient.noLimits) return 1.0
+        val pose = ListenerPoseTracker.currentPose(Minecraft.getInstance())
+        return AudioRangeClient.gainFor(uuid, x, y, z, sourcePlane(), pose, advance)
     }
 
     /** Called every game tick to update distance-based volume attenuation from [pos]. */

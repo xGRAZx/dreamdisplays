@@ -75,9 +75,10 @@ object AudioRangeClient {
 
     /**
      * The extra gain for a screen this tick, `0.0`..`1.0`. Called once per screen per game tick.
-     * [x] / [y] / [z] is the screen's block position, used for sections addressed by position.
+     * [x] / [y] / [z] is the screen's block position, used for sections addressed by position. With
+     * [advance] false (a report looking on) the wool probe is read, not stepped.
      */
-    fun gainFor(id: UUID, x: Int, y: Int, z: Int, plane: SourcePlane, listener: ListenerPose): Double {
+    fun gainFor(id: UUID, x: Int, y: Int, z: Int, plane: SourcePlane, listener: ListenerPose, advance: Boolean = true): Double {
         if (!soundAllowed()) return 0.0
         val f = features
         if (!f.rangeSupported) return 1.0
@@ -93,8 +94,16 @@ object AudioRangeClient {
             ),
         )
         if (fade <= 0.0) return 0.0
-        return fade * WoolAbsorptionProbe.tick(id, plane, listener, f.range.absorbWool, f.range.absorbCarpet)
+        val absorption = if (advance) {
+            WoolAbsorptionProbe.tick(id, plane, listener, f.range.absorbWool, f.range.absorbCarpet)
+        } else {
+            WoolAbsorptionProbe.current(id)
+        }
+        return fade * absorption
     }
+
+    /** True when [gainFor] can only answer 1.0 (the server's settings are in and set no limits). */
+    val noLimits: Boolean get() = helloReceived && !features.rangeSupported
 
     fun forget(id: UUID) = WoolAbsorptionProbe.forget(id)
 }

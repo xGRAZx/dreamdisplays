@@ -102,6 +102,17 @@ class AudioRangeFileTest {
     }
 
     @Test
+    fun clearingAlsoDropsTheSectionByPosition() {
+        val lines = listOf("range=5", "", "[display 10 64 20]", "range=3", "", "[display 1 2 3]", "range=7")
+        val cleared = AudioRangeFile.withSection(lines, id, null, AudioRangeFile.posKey(10, 64, 20))
+        val s = AudioRangeFile.parse(cleared)
+        assertNull(s.sections["10,64,20"])
+        assertEquals(7.0, s.sections.getValue("1,2,3").range)
+        assertEquals(5.0, s.effective(id, "10,64,20").first.range)
+        assertEquals(false, s.effective(id, "10,64,20").second)
+    }
+
+    @Test
     fun formatsNumbersCompactly() {
         assertEquals("5", AudioRangeFile.fmt(5.0))
         assertEquals("0.35", AudioRangeFile.fmt(0.35))

@@ -12,7 +12,6 @@ import com.dreamdisplays.shared.audiorange.ViewEdit
 import com.dreamdisplays.shared.audiorange.ViewOverride
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.math.abs
 
 /**
  * Volume, brightness, quality and the 3D sound mode an audiorange server forces on every viewer.
@@ -106,13 +105,17 @@ object ViewSync {
             return serverAcoustics ?: if (AudioRangeClient.isSoundAdmin) own else AcousticQuality.ULTRA
         }
 
-    /** Runs every game tick for every screen, before its audio update. */
-    fun tick(ds: DisplayScreen) {
+    /** Runs once per game tick, before the screens tick: sends the admin's settled edits, applies the 3D mode. */
+    fun clientTick() {
         flushPending()
         applyAcoustics()
+    }
+
+    /** Runs every game tick for every screen, before its audio update. */
+    fun tick(ds: DisplayScreen) {
         if (!supported) return
         if (!AudioRangeClient.isSoundAdmin) {
-            playerView(ds.uuid)?.let { apply(ds, it) }
+            apply(ds, playerView(ds.uuid))
             return
         }
         val e = entries[ds.uuid] ?: return
@@ -123,10 +126,13 @@ object ViewSync {
         apply(ds, e.view)
     }
 
-    private fun apply(ds: DisplayScreen, v: ViewOverride) {
-        v.volume?.toFloat()?.let { if (abs(ds.volume - it) > 0.001f) ds.volume = it }
-        v.brightness?.toFloat()?.let { if (abs(ds.brightness - it) > 0.001f) ds.brightness = it }
-        v.quality?.let { VideoQuality.parse(it) }?.let { if (ds.quality.serialize() != it.serialize()) ds.quality = it }
+    /** Shows [v] on [ds] without saving it over the viewer's own settings; null releases every value. */
+    private fun apply(ds: DisplayScreen, v: ViewOverride?) {
+        ds.applyForcedView(
+            v?.volume?.toFloat(),
+            v?.brightness?.toFloat(),
+            v?.quality?.let { VideoQuality.parse(it) },
+        )
     }
 
     @Synchronized
@@ -134,12 +140,7 @@ object ViewSync {
         if (acousticsApplied == acousticsRev) return
         acousticsApplied = acousticsRev
         if (AudioRangeClient.isSoundAdmin && System.currentTimeMillis() - acousticsSentAt < ECHO_MS) return
-        val mode = effectiveAcoustics
-        if (AudioRangeClient.isSoundAdmin && serverAcoustics != null && mode != ClientStateManager.config.audioAcoustics) {
-            ClientStateManager.config.audioAcoustics = mode
-            ClientStateManager.config.save()
-        }
-        pushAcoustics(mode)
+        pushAcoustics(effectiveAcoustics)
     }
 
     private fun pushAcoustics(mode: AcousticQuality) {
@@ -152,11 +153,21 @@ object ViewSync {
     fun userBrightness(id: UUID, value: Float) = queue(id, "bri", ViewEdit.Brightness(id, value.toDouble()))
     fun userQuality(id: UUID, value: VideoQuality) = queue(id, "q", ViewEdit.Quality(id, value.serialize()))
 
-    fun userAcoustics(mode: AcousticQuality) {
-        if (!supported || !AudioRangeClient.isSoundAdmin) return
-        // Take it as the server's value right away, so the menu does not flick back before the echo.
-        if (serverAcoustics != null) serverAcoustics = mode
-        pending["-|a3"] = ViewEdit.Acoustics(mode.name) to System.currentTimeMillis()
+    /**
+     * The menu's 3D sound choice. On an audiorange server a sound admin's pick goes to the server, for
+     * everyone, and leaves the admin's own setting for other servers alone; elsewhere it is the player's
+     * own setting.
+     */
+    fun chooseAcoustics(mode: AcousticQuality) {
+        if (supported && AudioRangeClient.isSoundAdmin) {
+            // Take it as the server's value right away, so the menu does not flick back before the echo.
+            serverAcoustics = mode
+            pending["-|a3"] = ViewEdit.Acoustics(mode.name) to System.currentTimeMillis()
+        } else {
+            ClientStateManager.config.audioAcoustics = mode
+            ClientStateManager.config.save()
+        }
+        pushAcoustics(mode)
     }
 
     private fun queue(id: UUID, key: String, edit: ViewEdit) {

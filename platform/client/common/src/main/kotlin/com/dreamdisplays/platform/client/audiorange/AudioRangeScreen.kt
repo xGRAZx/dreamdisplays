@@ -24,8 +24,9 @@ import kotlin.math.roundToLong
 
 /**
  * The admin's "Sound" window for one screen: whether it has its own limits, the range, how far the
- * sound goes towards each side, and a toggle that shows the zone in the world. Every change is sent to
- * the server right away; the server saves it and pushes it to every player.
+ * sound goes towards each side, and a toggle that shows the zone in the world. A slider change is sent
+ * once the slider has been still for [SEND_AFTER_MS] (so a drag is one save, not dozens); the server
+ * saves it and pushes it to every player.
  */
 class AudioRangeScreen(private val ds: DisplayScreen) : UiScreenBase(Component.translatable("dreamdisplays.audio.title")) {
     private val screen = ScreenRef(ds.uuid, ds.pos.x, ds.pos.y, ds.pos.z)
@@ -37,6 +38,12 @@ class AudioRangeScreen(private val ds: DisplayScreen) : UiScreenBase(Component.t
 
     /** True while the window mirrors a server push into its widgets, so that echo is not sent back. */
     private var syncing = false
+
+    /** Slider values not yet sent, by direction (null = the range itself), in the order they were made. */
+    private val unsent = LinkedHashMap<RangeDirection?, Double>()
+
+    /** [System.currentTimeMillis] of this admin's last edit; server pushes before [ECHO_MS] after it are echoes. */
+    private var lastEditAt = 0L
     private var zoneOn = zoneAlive(ds.uuid)
 
     private lateinit var section: SettingsSection
@@ -114,9 +121,11 @@ class AudioRangeScreen(private val ds: DisplayScreen) : UiScreenBase(Component.t
 
     private fun onCustomChanged(on: Boolean) {
         custom = on
+        lastEditAt = System.currentTimeMillis()
         if (on) {
             AudioRangeNet.range(RangeMessage.Custom(screen))
         } else {
+            unsent.clear()
             profile = global
             syncSliders()
             AudioRangeNet.range(RangeMessage.Clear(screen))
@@ -125,7 +134,17 @@ class AudioRangeScreen(private val ds: DisplayScreen) : UiScreenBase(Component.t
     }
 
     private fun send(direction: RangeDirection?, value: Double) {
-        if (!syncing && custom) AudioRangeNet.range(RangeMessage.Key(screen, direction, value))
+        if (syncing || !custom) return
+        lastEditAt = System.currentTimeMillis()
+        unsent.remove(direction)
+        unsent[direction] = value
+    }
+
+    /** Sends the slider values once the admin has stopped moving them (or right away with [now]). */
+    private fun flushUnsent(now: Boolean = false) {
+        if (unsent.isEmpty() || (!now && System.currentTimeMillis() - lastEditAt < SEND_AFTER_MS)) return
+        if (custom) unsent.forEach { (dir, value) -> AudioRangeNet.range(RangeMessage.Key(screen, dir, value)) }
+        unsent.clear()
         pushZone()
     }
 
@@ -136,6 +155,9 @@ class AudioRangeScreen(private val ds: DisplayScreen) : UiScreenBase(Component.t
 
     /** Mirrors the server's latest values (another admin's edit, or our own echo) into the widgets. */
     private fun pollServer() {
+        // While the admin is editing, a push is the echo of an older value of theirs: applying it would
+        // snap the slider back mid-drag. The newest server state is picked up once editing stops.
+        if (unsent.isNotEmpty() || System.currentTimeMillis() - lastEditAt < ECHO_MS) return
         val now = AudioRangeClient.profileFor(ds.uuid, screen.x, screen.y, screen.z)
         if (now == seen) return
         seen = now
@@ -180,6 +202,7 @@ class AudioRangeScreen(private val ds: DisplayScreen) : UiScreenBase(Component.t
     override fun minContentSize(): Pair<Int, Int> = (PANEL_W + 20) to (PANEL_H + 10)
 
     override fun drawScreen(g: GuiGraphicsCompat, mouseX: Int, mouseY: Int, partialTick: Float) {
+        flushUnsent()
         pollServer()
         drawScreenBackground(g)
         val panel = UiRect((width - PANEL_W) / 2, (height - PANEL_H) / 2, PANEL_W, PANEL_H)
@@ -191,7 +214,13 @@ class AudioRangeScreen(private val ds: DisplayScreen) : UiScreenBase(Component.t
     }
 
     override fun onClose() {
+        flushUnsent(now = true)
         DisplayMenu.open(ds)
+    }
+
+    override fun removed() {
+        flushUnsent(now = true)
+        super.removed()
     }
 
     companion object {
@@ -200,6 +229,8 @@ class AudioRangeScreen(private val ds: DisplayScreen) : UiScreenBase(Component.t
         private const val MAX_BLOCKS = 100.0
         private const val MIN_REACH = 0.5
         private const val ZONE_REFRESH_MS = 60_000L
+        private const val SEND_AFTER_MS = 250L
+        private const val ECHO_MS = 1_500L
 
         /** Zones this player has switched on, so reopening the window shows the toggle as on. */
         private val zones = ConcurrentHashMap<UUID, Long>()

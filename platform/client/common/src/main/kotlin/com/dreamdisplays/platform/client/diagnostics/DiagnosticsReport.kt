@@ -128,7 +128,7 @@ object DiagnosticsReport {
                 ds.isPaused -> "paused"
                 else -> "playing"
             }
-            val gain = runCatching { ds.rangeGain() }.getOrDefault(-1.0)
+            val gain = runCatching { ds.rangeGain(advance = false) }.getOrDefault(-1.0)
             line(
                 "%s at %d %d %d, %.0f blocks: %s, quality %s (asked %s)%s, volume %.2f%s, range gain %.2f".format(
                     Locale.ROOT,
@@ -147,8 +147,8 @@ object DiagnosticsReport {
     private fun hint(ds: DisplayScreen, gain: Double): String? = when {
         ds.muted -> "muted by the player"
         ds.volume <= 0.001f -> "volume is 0"
-        gain == 0.0 -> "outside the server's sound range (or behind wool)"
         !AudioRangeClient.settingsReceived -> "server settings not received: sound waits for them"
+        gain == 0.0 -> "outside the server's sound range (or behind wool)"
         else -> null
     }
 

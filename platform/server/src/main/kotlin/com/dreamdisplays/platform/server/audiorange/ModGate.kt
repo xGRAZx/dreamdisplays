@@ -59,8 +59,10 @@ internal class ModGate(dataFolder: File) {
 
     /** The client identified as the audiorange mod: let it in, send it the screens it was denied, and remind it to update if old. */
     fun onModHello(player: Player, text: String) {
-        if (verified.add(player.uniqueId)) DisplayActions.sendAllDisplays(player)
         val s = settings
+        // Only a player the gate held back is missing screens; the rest got them all at join.
+        val heldBack = s.enabled && !allowed(player)
+        if (verified.add(player.uniqueId) && heldBack) DisplayActions.sendAllDisplays(player)
         val build = AudioRangeProtocol.helloBuild(text)
         if (build < s.requiredBuild && reminderSent.add(player.uniqueId)) {
             fun fill(t: String) = t.replace("%have%", build.toString()).replace("%need%", s.requiredBuild.toString())

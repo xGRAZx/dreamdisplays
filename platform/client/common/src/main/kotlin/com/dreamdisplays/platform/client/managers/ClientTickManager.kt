@@ -4,6 +4,7 @@ import com.dreamdisplays.api.display.model.property.DisplayId
 import com.dreamdisplays.core.services.keys.AudioAcousticsServices
 import com.dreamdisplays.core.runtime.getOrNull
 import com.dreamdisplays.platform.client.audio.ListenerPoseTracker
+import com.dreamdisplays.platform.client.audiorange.ViewSync
 import com.dreamdisplays.platform.client.capabilities.CapabilityNegotiationService
 import com.dreamdisplays.platform.client.core.ClientApplication
 import com.dreamdisplays.platform.client.core.ClientLifecycleEvent
@@ -103,6 +104,7 @@ object ClientTickManager {
         }
 
         val overBudget = DisplayLifecycleManager.overBudget(playerPos)
+        ViewSync.clientTick()
         for (displayScreen in DisplayRegistry.getScreens()) {
             // Hysteresis
             val threshold = if (displayScreen.isDormant) {

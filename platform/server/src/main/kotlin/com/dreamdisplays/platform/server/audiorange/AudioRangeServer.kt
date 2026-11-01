@@ -125,7 +125,8 @@ object AudioRangeServer {
                 is RangeMessage.Custom -> if (settings.sections.containsKey(screen.id.toString())) return@edit null else current
                 is RangeMessage.Key -> message.direction?.let { current.withScale(it, message.value) } ?: current.withRange(message.value)
             }
-            AudioRangeFile.withSection(lines, screen.id, profile?.clamped())
+            // The screen's section by position goes too: the editor shows (and edits) whichever applies.
+            AudioRangeFile.withSection(lines, screen.id, profile?.clamped(), screen.posKey)
         }
         broadcast()
     }

@@ -189,17 +189,19 @@ object AudioRangeFile {
     }
 
     /**
-     * Drops the `[display <id>]` section and, when [profile] is not null, appends a full one in its
-     * place at the end of the file. Sections addressed by position are left alone.
+     * Drops the `[display <id>]` section (and the `[display x y z]` one for [posKey], when given) and,
+     * when [profile] is not null, appends a full `[display <id>]` one in its place at the end of the file.
+     * Other sections addressed by position are left alone.
      */
-    fun withSection(lines: List<String>, id: UUID, profile: AudioRangeProfile?): List<String> {
+    fun withSection(lines: List<String>, id: UUID, profile: AudioRangeProfile?, posKey: String? = null): List<String> {
         val target = id.toString()
         val out = ArrayList<String>(lines.size + 9)
         var skipping = false
         for (raw in lines) {
             val line = raw.trim()
             if (line.startsWith("[")) {
-                skipping = headerKey(line) == target
+                val key = headerKey(line)
+                skipping = key == target || (posKey != null && key == posKey)
                 if (skipping) continue
             } else if (skipping) continue
             out += raw

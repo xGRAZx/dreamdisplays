@@ -47,6 +47,9 @@ internal object WoolAbsorptionProbe {
         return s.gain
     }
 
+    /** [id]'s current gain, without advancing it. */
+    fun current(id: UUID): Double = states[id]?.gain ?: 1.0
+
     fun forget(id: UUID) {
         states.remove(id)
     }

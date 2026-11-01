@@ -33,7 +33,7 @@ object AudioRangeProtocol {
      * release: the release workflow checks that the tag (`ar<BUILD>`) matches, and the plugin reminds
      * players whose mod reports a lower number.
      */
-    const val BUILD = 22
+    const val BUILD = 23
 
     /**
      * The hello text: `hello|<extension revision>|<build>`. The audiorange 1-21 mods send only the

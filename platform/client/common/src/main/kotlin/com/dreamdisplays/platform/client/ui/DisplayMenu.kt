@@ -11,7 +11,6 @@ import com.dreamdisplays.core.services.keys.DisplayServices
 import com.dreamdisplays.core.services.keys.MediaServices
 import com.dreamdisplays.api.media.model.VideoQuality
 import com.dreamdisplays.api.media.audio.AcousticQuality
-import com.dreamdisplays.core.services.keys.AudioAcousticsServices
 import com.dreamdisplays.api.media.search.MediaSearchResult
 import com.dreamdisplays.shared.playback.FullscreenMode
 import com.dreamdisplays.api.playback.model.PlaybackAction
@@ -175,10 +174,7 @@ class DisplayMenu private constructor(
                 enabledFor = { !ViewSync.locked },
                 label = { translatableText(audio3dModeLabel(it)) },
             ) { quality ->
-                ClientStateManager.config.audioAcoustics = quality
-                ClientStateManager.config.save()
-                ViewSync.userAcoustics(quality)
-                DreamServices.registry.getOrNull(AudioAcousticsServices.ACOUSTICS)?.setGlobalQuality(quality)
+                ViewSync.chooseAcoustics(quality)
             })
         audio3d.visibleWhen = notErrored
 
@@ -239,10 +235,7 @@ class DisplayMenu private constructor(
         brightnessReset.visibleWhen = notErrored
 
         val audio3dReset = addUi(IconButton("refresh") {
-            ClientStateManager.config.audioAcoustics = AUDIO_3D_DEFAULT
-            ClientStateManager.config.save()
-            ViewSync.userAcoustics(AUDIO_3D_DEFAULT)
-            DreamServices.registry.getOrNull(AudioAcousticsServices.ACOUSTICS)?.setGlobalQuality(AUDIO_3D_DEFAULT)
+            ViewSync.chooseAcoustics(AUDIO_3D_DEFAULT)
         })
         audio3dReset.enabledWhen = { !ViewSync.locked && ViewSync.effectiveAcoustics != AUDIO_3D_DEFAULT }
         audio3dReset.visibleWhen = notErrored

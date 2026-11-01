@@ -24,13 +24,17 @@ internal class SettingsFile<T : Any>(
 
     val name: String get() = file.name
 
-    /** The current parsed value. */
-    fun get(): T = synchronized(lock) { load().second }
+    /** The current parsed value; only a file stat while the file is unchanged (this runs per packet). */
+    fun get(): T = synchronized(lock) {
+        cached?.takeIf { stampOf() == stamp } ?: load().second
+    }
+
+    private fun stampOf(): Pair<Long, Long> = file.lastModified() to file.length()
 
     /** Current lines and value, for read-modify-write edits under [edit]. */
     private fun load(): Pair<List<String>, T> {
         val lines = readLines()
-        val now = file.lastModified() to file.length()
+        val now = stampOf()
         val value = cached?.takeIf { now == stamp } ?: parse(lines).also { cached = it; stamp = now }
         return lines to value
     }
