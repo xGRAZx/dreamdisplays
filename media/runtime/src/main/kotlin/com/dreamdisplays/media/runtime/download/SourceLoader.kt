@@ -76,18 +76,28 @@ object SourceLoader {
 
     /**
      * Downloads the archive at [url], extracts it with [select] into [destDir], deletes the archive, and
-     * returns the entry count.
+     * returns the entry count. A download that arrives damaged (a dropped connection, or a nightly build
+     * replaced mid-download) is fetched again up to [DOWNLOAD_ATTEMPTS] times before giving up.
      */
     @Throws(IOException::class)
     fun downloadAndExtract(url: String, destDir: Path, label: String, select: (entryName: String) -> String?): Int {
         val archive = destDir.resolve("_download" + if (url.endsWith(".zip")) ".zip" else ".tar.xz")
-        try {
-            download(url, archive, label)
-            return extract(archive, destDir, select).also { logger.info("$label ready ($it files unpacked).") }
-        } finally {
-            archive.deleteIfExists()
+        var attempt = 1
+        while (true) {
+            try {
+                download(url, archive, label)
+                return extract(archive, destDir, select).also { logger.info("$label ready ($it files unpacked).") }
+            } catch (e: IOException) {
+                if (attempt >= DOWNLOAD_ATTEMPTS) throw e
+                logger.warn("$label download $attempt failed (${e.javaClass.simpleName}: ${e.message}); retrying.")
+                attempt++
+            } finally {
+                archive.deleteIfExists()
+            }
         }
     }
+
+    private const val DOWNLOAD_ATTEMPTS = 3
 
     /** Marks [file] executable and drops the macOS quarantine flag so it can be spawned. */
     fun makeExecutable(file: Path) {
