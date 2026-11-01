@@ -27,6 +27,9 @@ val dreamDisplaysShadedDependencies = listOf(
     "org.jetbrains.kotlinx:kotlinx-datetime-jvm",
     "org.xerial:sqlite-jdbc",
     "org.apache.commons:commons-compress",
+    // commons-compress needs a newer commons-io than older games ship: 1.21.1's 2.15.1 shares one skip
+    // buffer between threads, which corrupts two archives unpacked at once (CRC64 mismatch).
+    "commons-io:commons-io",
     "org.tukaani:xz",
     "org.jetbrains.kotlin:kotlin-stdlib",
     "org.jetbrains:annotations",
@@ -53,6 +56,7 @@ val dreamDisplaysShadedDependencies = listOf(
 
 val dreamDisplaysShadedPackages = listOf(
     "org.apache.commons.compress",
+    "org.apache.commons.io",
     "org.tukaani.xz",
     "kotlin",
     "kotlinx",

@@ -20,6 +20,7 @@ object SourceLoader {
     private val logger = LoggerFactory.getLogger(javaClass)
     private const val USER_AGENT = "DreamDisplays-bootstrap"
     private const val MIB = 1_048_576.0
+    private val extractLock = Any()
 
     /** Downloads [url] to [dest]. */
     @Throws(IOException::class)
@@ -48,9 +49,12 @@ object SourceLoader {
         }
     }
 
-    /** Extracts the entries. */
+    /**
+     * Extracts the entries. One archive at a time: the FFmpeg binary and its libraries are fetched in
+     * parallel, and unpacking both at once has corrupted them through a game's older shared libraries.
+     */
     @Throws(IOException::class)
-    fun extract(archive: Path, destDir: Path, select: (entryName: String) -> String?): Int {
+    fun extract(archive: Path, destDir: Path, select: (entryName: String) -> String?): Int = synchronized(extractLock) {
         Files.createDirectories(destDir)
         var count = 0
         fun write(name: String, input: InputStream) {
@@ -71,7 +75,7 @@ object SourceLoader {
                 }
             }
         }
-        return count
+        count
     }
 
     /**
