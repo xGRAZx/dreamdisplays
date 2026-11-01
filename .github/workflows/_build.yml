@@ -126,7 +126,7 @@ jobs:
               },
               {
                   "platform": "macos-aarch64",
-                  "runner": "macos-14",
+                  "runner": "macos-15",
                   "target": "aarch64-apple-darwin",
                   "native_library": "libdreamdisplays_native.dylib",
                   "lav_library": "libdreamdisplays_lav.dylib",
