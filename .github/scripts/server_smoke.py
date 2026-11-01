@@ -54,6 +54,9 @@ FATAL_MARKERS = (
     "Could not load plugin",
     "Exception in thread",
 )
+# Lines that match a marker but are harmless: Netty probing the macOS-only kqueue transport on Linux
+# (NeoForge logs the failed probe while it picks epoll or NIO).
+HARMLESS = re.compile(r"io\.netty\.channel\.kqueue\.")
 OWN_ERROR = re.compile(r"(ERROR|Exception|Error:).*dreamdisplays|dreamdisplays.*(ERROR|Exception)", re.IGNORECASE)
 
 
@@ -250,7 +253,7 @@ def analyse(kind: str, log: str, booted: bool, code: int | None) -> list[str]:
     problems = []
     if not booted:
         problems.append("server never reported Done" if code is not None else "server timed out before Done")
-    lines = log.splitlines()
+    lines = [line for line in log.splitlines() if not HARMLESS.search(line)]
     for marker in FATAL_MARKERS:
         hit = next((line for line in lines if marker in line), None)
         if hit:
