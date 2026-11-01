@@ -1,6 +1,5 @@
 package com.dreamdisplays.shared.audiorange
 
-import com.dreamdisplays.api.Unstable
 import java.util.UUID
 
 /**
@@ -14,7 +13,6 @@ import java.util.UUID
  * - `view_bri:<n>` (revision 3): the brightness players get on screens without their own. Without it
  *   players choose, which is also what older plugins mean.
  */
-@Unstable
 data class AudioRangeFeatures(
     /** The server runs the audiorange plugin (sound range part). */
     val rangeSupported: Boolean = false,

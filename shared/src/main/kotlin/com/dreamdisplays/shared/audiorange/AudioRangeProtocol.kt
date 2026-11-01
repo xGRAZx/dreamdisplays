@@ -1,6 +1,5 @@
 package com.dreamdisplays.shared.audiorange
 
-import com.dreamdisplays.api.Unstable
 import java.io.ByteArrayOutputStream
 import java.util.Locale
 import java.util.UUID
@@ -12,7 +11,6 @@ import java.util.UUID
  * mod does not use; their payload is a `|`-separated UTF-8 string. Server settings reach the client
  * as extra tokens in `ServerHello.allowedFeatures`.
  */
-@Unstable
 object AudioRangeProtocol {
     /** Client to server: edit a screen's sound range ([RangeMessage]). */
     const val TYPE_RANGE = 9001
@@ -126,14 +124,12 @@ object AudioRangeProtocol {
 }
 
 /** Where a screen sits, sent with every range edit so a section can be matched by position too. */
-@Unstable
 data class ScreenRef(val id: UUID, val x: Int, val y: Int, val z: Int) {
     val posKey: String get() = AudioRangeFile.posKey(x, y, z)
     internal fun wire(): String = "$id|$x|$y|$z"
 }
 
 /** A range edit from the in-game editor ([AudioRangeProtocol.TYPE_RANGE]). */
-@Unstable
 sealed interface RangeMessage {
     val screen: ScreenRef
 
@@ -188,7 +184,6 @@ sealed interface RangeMessage {
  * Show / hide the zone particles for one screen ([AudioRangeProtocol.TYPE_ZONE]). [pose] is the screen
  * frame as centre, normal, right axis and up axis (12 numbers).
  */
-@Unstable
 sealed interface ZoneMessage {
     data class Show(val display: UUID?, val pose: List<Double>, val profile: AudioRangeProfile) : ZoneMessage {
         init {
@@ -233,7 +228,6 @@ sealed interface ZoneMessage {
 }
 
 /** View edits on the wire: `v|<display uuid or ->|<vol|bri|q|a3|clear>|<value>`. */
-@Unstable
 object ViewMessage {
     fun encode(edit: ViewEdit): String = when (edit) {
         is ViewEdit.Acoustics -> "v|-|a3|${edit.mode ?: "-"}"

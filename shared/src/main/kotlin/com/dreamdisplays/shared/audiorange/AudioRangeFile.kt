@@ -1,10 +1,8 @@
 package com.dreamdisplays.shared.audiorange
 
-import com.dreamdisplays.api.Unstable
 import java.util.UUID
 
 /** One screen section of `audio_range.txt`: only the keys it lists override the global values. */
-@Unstable
 data class RangeOverride(
     val range: Double? = null,
     val scales: Map<RangeDirection, Double> = emptyMap(),
@@ -25,7 +23,6 @@ data class RangeOverride(
 }
 
 /** What `audio_range.txt` says, with sections keyed by display uuid or by `x,y,z`. */
-@Unstable
 data class AudioRangeSettings(
     val global: AudioRangeProfile = AudioRangeProfile(),
     val absorbWool: Double = DEFAULT_ABSORB_WOOL,
@@ -48,7 +45,6 @@ data class AudioRangeSettings(
  * Reads and edits `plugins/DreamDisplays/audio_range.txt` line by line, so comments and the order an
  * admin wrote things in survive every edit made from the game.
  */
-@Unstable
 object AudioRangeFile {
     const val FILE_NAME = "audio_range.txt"
 

@@ -1,13 +1,11 @@
 package com.dreamdisplays.shared.audiorange
 
-import com.dreamdisplays.api.Unstable
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.pow
 import kotlin.math.sqrt
 
 /** Which absorbing material a block is. */
-@Unstable
 enum class Absorber { NONE, WOOL, CARPET }
 
 /**
@@ -16,7 +14,6 @@ enum class Absorber { NONE, WOOL, CARPET }
  * (so `absorbWool = 1` silences anything behind a full block), and every carpet it actually touches
  * keeps `1 - absorbCarpet`.
  */
-@Unstable
 object SoundAbsorption {
     /** Hits shorter than this (a ray grazing a block's corner) do not count for full-strength wool. */
     const val MIN_WOOL_PATH = 0.05

@@ -1,12 +1,10 @@
 package com.dreamdisplays.shared.audiorange
 
-import com.dreamdisplays.api.Unstable
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
 
 /** A side of the screen a direction multiplier applies to, with its `audio_range.txt` key and wire token. */
-@Unstable
 enum class RangeDirection(val key: String, val wire: String, val defaultScale: Double) {
     FRONT("front", "sf", 1.0),
     BACK("back", "sb", 1.0),
@@ -32,7 +30,6 @@ enum class RangeDirection(val key: String, val wire: String, val defaultScale: D
  * How far a screen's sound carries: [range] blocks (0 = no limit), shrunk per side by the direction
  * multipliers. A multiplier of 2 makes the sound reach half as far that way, 0.5 twice as far.
  */
-@Unstable
 data class AudioRangeProfile(
     val range: Double = DEFAULT_RANGE,
     val scales: List<Double> = RangeDirection.entries.map { it.defaultScale },

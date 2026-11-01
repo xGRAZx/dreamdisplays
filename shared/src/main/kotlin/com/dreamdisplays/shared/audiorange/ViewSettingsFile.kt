@@ -1,11 +1,9 @@
 package com.dreamdisplays.shared.audiorange
 
-import com.dreamdisplays.api.Unstable
 import java.util.Locale
 import java.util.UUID
 
 /** Values an admin forces on one screen for every viewer; a null value is left to each player. */
-@Unstable
 data class ViewOverride(
     val volume: Double? = null,
     val brightness: Double? = null,
@@ -15,7 +13,6 @@ data class ViewOverride(
 }
 
 /** `display_view.txt`: the server-wide 3D sound mode and brightness, and the per-screen forced view values. */
-@Unstable
 data class ViewSettings(
     /** `OFF`, `BASIC`, `ADVANCED` or `ULTRA`, or null when the server does not force one. */
     val acoustics: String? = null,
@@ -33,7 +30,6 @@ data class ViewSettings(
 }
 
 /** One change an admin made from the game, as sent in a view-settings message. */
-@Unstable
 sealed interface ViewEdit {
     data class Acoustics(val mode: String?) : ViewEdit
     data class Volume(val id: UUID, val value: Double) : ViewEdit
@@ -42,7 +38,6 @@ sealed interface ViewEdit {
     data class Clear(val id: UUID) : ViewEdit
 }
 
-@Unstable
 object ViewSettingsFile {
     const val FILE_NAME = "display_view.txt"
     const val MAX_VOLUME = 4.0

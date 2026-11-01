@@ -1,9 +1,7 @@
 package com.dreamdisplays.shared.audiorange
 
-import com.dreamdisplays.api.Unstable
 
 /** `mod_required.txt`: whether screens are hidden from players without the audiorange mod, and what they are told. */
-@Unstable
 data class ModGateSettings(
     val enabled: Boolean = true,
     val message: String = DEFAULT_MESSAGE,
@@ -29,7 +27,6 @@ data class ModGateSettings(
     }
 }
 
-@Unstable
 object ModGateFile {
     const val FILE_NAME = "mod_required.txt"
 

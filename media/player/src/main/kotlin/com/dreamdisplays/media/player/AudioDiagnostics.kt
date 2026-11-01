@@ -1,6 +1,5 @@
 package com.dreamdisplays.media.player
 
-import com.dreamdisplays.api.Unstable
 import java.util.concurrent.atomic.AtomicLong
 import javax.sound.sampled.AudioFormat
 import javax.sound.sampled.AudioSystem
@@ -12,7 +11,6 @@ import javax.sound.sampled.SourceDataLine
  * card at all. Screen audio plays through Java Sound, not Minecraft's sound engine, so a missing or
  * switched output device shows up here and nowhere in the game's own options.
  */
-@Unstable
 object AudioDiagnostics {
     /** Audio lines opened successfully, one per screen session. */
     val linesOpened = AtomicLong()
