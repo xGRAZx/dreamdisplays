@@ -4,6 +4,7 @@
     server_smoke.py fabric --mc 1.21.11 --loader 0.19.3 --api 0.141.4+1.21.11 --jar dreamdisplays-fabric.jar
     server_smoke.py quilt  --mc 1.21.11 --api 0.141.4+1.21.11 --jar dreamdisplays-fabric.jar
     server_smoke.py paper  --mc 1.21.11 --jar dreamdisplays-paper.jar
+    server_smoke.py neoforge --mc 1.21.11 --loader 21.11.42 --jar dreamdisplays-neoforge.jar
 
 The server boots a flat world, is stopped as soon as it reports "Done", and its log is then checked
 for mixin failures, linkage errors and DreamDisplays exceptions. A one-line result is appended to the
@@ -168,6 +169,23 @@ def prepare_quilt(args, root: Path) -> list[str]:
     return ["-jar", "quilt-server-launch.jar", "nogui"]
 
 
+def prepare_neoforge(args, root: Path) -> list[str]:
+    write_server_files(root)
+    maven = (args.maven or "https://maven.neoforged.net/releases").rstrip("/")
+    installer = download(
+        f"{maven}/net/neoforged/neoforge/{args.loader}/neoforge-{args.loader}-installer.jar",
+        root.parent / "neoforge-installer.jar",
+    )
+    subprocess.run(["java", "-jar", str(installer), "--install-server", str(root)], check=True, cwd=root)
+    mods = root / "mods"
+    mods.mkdir(exist_ok=True)
+    shutil.copy(args.jar, mods / Path(args.jar).name)
+    args_file = root / "libraries" / "net" / "neoforged" / "neoforge" / args.loader / "unix_args.txt"
+    if not args_file.is_file():
+        raise RuntimeError(f"the installer wrote no {args_file.relative_to(root)}")
+    return [f"@{args_file.relative_to(root)}", "nogui"]
+
+
 def prepare_paper(args, root: Path) -> list[str]:
     write_server_files(root)
     build = fetch_json(f"https://fill.papermc.io/v3/projects/paper/versions/{args.mc}/builds/latest")
@@ -243,7 +261,7 @@ def analyse(kind: str, log: str, booted: bool, code: int | None) -> list[str]:
         problems.append(f"DreamDisplays error: {own[0].strip()[:300]}")
     if kind in ("fabric", "quilt") and not re.search(r"(^|[-|])\s*dreamdisplays\b", log, re.MULTILINE | re.IGNORECASE):
         problems.append("dreamdisplays is not in the loaded mod list")
-    if kind in ("fabric", "quilt") and "Storage connected" not in log:
+    if kind in ("fabric", "quilt", "neoforge") and "Storage connected" not in log:
         problems.append("the DreamDisplays server side never started (no 'Storage connected')")
     if kind == "paper" and "Enabling DreamDisplays" not in log:
         problems.append("plugin was never enabled")
@@ -263,11 +281,12 @@ def resolve_jar(pattern: str) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("kind", choices=("fabric", "quilt", "paper"))
+    parser.add_argument("kind", choices=("fabric", "quilt", "paper", "neoforge"))
     parser.add_argument("--mc", default="")
     parser.add_argument("--jar", default="")
     parser.add_argument("--loader", default="")
     parser.add_argument("--api", default="")
+    parser.add_argument("--maven", default="", help="NeoForge maven repository, when not the release one")
     parser.add_argument("--relax-loader", action="store_true", help="open fabricloader to '*' to probe older loaders")
     parser.add_argument("--drop-quilt-json", action="store_true", help="remove quilt.mod.json before loading on Quilt")
     parser.add_argument("--label", default="")
@@ -287,7 +306,9 @@ def main() -> int:
     root = Path(args.work).resolve() / "server"
     shutil.rmtree(root.parent, ignore_errors=True)
     root.mkdir(parents=True)
-    prepare = {"fabric": prepare_fabric, "quilt": prepare_quilt, "paper": prepare_paper}[args.kind]
+    prepare = {
+        "fabric": prepare_fabric, "quilt": prepare_quilt, "paper": prepare_paper, "neoforge": prepare_neoforge,
+    }[args.kind]
     try:
         launch = prepare(args, root)
     except Exception as error:  # noqa: BLE001 - a setup failure is a result too

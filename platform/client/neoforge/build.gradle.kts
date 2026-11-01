@@ -84,6 +84,7 @@ sourceSets.create("vendoredLibraries") {
 }
 
 val isLegacyObfuscated = scVersion("minecraft.version").startsWith("1.")
+
 // The rendertype package only exists from 1.21.11.
 val hasRenderTypePackage = (scVersion("minecraft.version").split(".").map { it.toIntOrNull() ?: 0 } + listOf(0, 0, 0))
     .let { (major, minor, patch) -> major * 1_000_000 + minor * 1_000 + patch >= 1_021_011 }
@@ -204,7 +205,6 @@ tasks.processResources {
     val neoForgeLoaderRange = scVersion("neoforge.loader.range")
     val minecraftRange = scVersion("neoforge.minecraft.range")
     val javaVersion = scVersion("java.version")
-    // A local copy: the configuration cache cannot serialize a lambda that reads a script-level val.
     val stripOitMixin = !hasRenderTypePackage
     inputs.property("version", projectVersion)
     inputs.property("neoforgeLoaderRange", neoForgeLoaderRange)
@@ -222,7 +222,6 @@ tasks.processResources {
     }
     filesMatching(listOf("dreamdisplays.mixins.json", "dreamdisplays.server.mixins.json")) {
         expand(mapOf("javaVersion" to javaVersion))
-        // DisplayOitPhase targets the rendertype package (1.21.11+); older targets leave it out.
         if (stripOitMixin) filter { line -> if ("\"DisplayOitPhase\"" in line) "" else line }
     }
     filesMatching("assets/dreamdisplays/version.txt") {

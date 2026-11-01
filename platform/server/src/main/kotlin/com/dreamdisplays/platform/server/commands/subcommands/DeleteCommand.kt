@@ -1,11 +1,15 @@
 package com.dreamdisplays.platform.server.commands.subcommands
 
+import com.dreamdisplays.platform.server.utils.MessageUtil
+import com.dreamdisplays.platform.server.api.ServerApiHost
+import com.dreamdisplays.platform.client.utils.literalText
 import com.dreamdisplays.platform.server.ModLoaderOnly
 import com.dreamdisplays.platform.server.PaperServer
 import com.dreamdisplays.platform.server.VanillaServerState
 import com.dreamdisplays.platform.server.datatypes.display.VanillaDisplayData
 import com.dreamdisplays.platform.server.managers.DisplayManager
-import com.dreamdisplays.platform.server.utils.MessageUtil
+import com.dreamdisplays.platform.server.utils.ServerMessage
+import com.dreamdisplays.platform.server.utils.sendTo
 import com.dreamdisplays.platform.server.utils.VanillaPermissions
 import com.dreamdisplays.platform.server.utils.net.VanillaPacketUtil
 import com.mojang.brigadier.context.CommandContext
@@ -26,7 +30,6 @@ class DeleteCommand : SubCommand {
     override val permission: String? = null
     override val playerOnly = true
 
-    /** Deletes the display named by `this` (looked-at, within 32 blocks) or a remote id / prefix. */
     override fun execute(sender: CommandSender, args: Array<String?>) {
         val player = (sender as? Player) ?: return
         val token = args.getOrNull(0) ?: "this"
@@ -37,12 +40,17 @@ class DeleteCommand : SubCommand {
         val canDelete = player.hasPermission(PaperServer.config.permissions.deleteOthers) ||
                 (isOwner && player.hasPermission(PaperServer.config.permissions.delete))
         if (!canDelete) {
-            MessageUtil.sendMessage(player, "displayCommandMissingPermission")
+            ServerMessage.DISPLAY_COMMAND_MISSING_PERMISSION.sendTo(player)
+            return
+        }
+
+        ServerApiHost.current?.askDelete(data, player.uniqueId)?.let { reason ->
+            if (reason.isNotEmpty()) MessageUtil.sendColoredMessage(player, reason)
             return
         }
 
         DisplayManager.delete(data.id)
-        MessageUtil.sendMessage(player, "displayDeleted")
+        ServerMessage.DISPLAY_DELETED.sendTo(player)
     }
 }
 
@@ -52,7 +60,7 @@ object VanillaDeleteCommand {
     /** Deletes the display named by `this` (looked-at, within 32 blocks) or a remote id/prefix. */
     fun execute(ctx: CommandContext<CommandSourceStack>, token: String): Int {
         val player = ctx.source.entity as? ServerPlayer
-            ?: return ctx.source.sendFailure(Component.literal("Players only.")).let { 0 }
+            ?: return ctx.source.sendFailure(literalText("Players only.")).let { 0 }
 
         val data = resolveVanillaDisplayTarget(player, token) as? VanillaDisplayData ?: return 0
 
@@ -67,14 +75,19 @@ object VanillaDeleteCommand {
             VanillaPermissions.Fallback.EVERYONE
         ))
         if (!canDelete) {
-            MessageUtil.sendMessage(player, "displayCommandMissingPermission")
+            ServerMessage.DISPLAY_COMMAND_MISSING_PERMISSION.sendTo(player)
+            return 0
+        }
+
+        ServerApiHost.current?.askDelete(data, player.uuid)?.let { reason ->
+            if (reason.isNotEmpty()) MessageUtil.sendColoredMessage(player, reason)
             return 0
         }
 
         val receivers = DisplayManager.getReceivers(data, ctx.source.server)
         DisplayManager.delete(data)
         VanillaPacketUtil.sendDelete(receivers, data.id)
-        MessageUtil.sendMessage(player, "displayDeleted")
+        ServerMessage.DISPLAY_DELETED.sendTo(player)
         return 1
     }
 }

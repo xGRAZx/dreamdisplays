@@ -1,5 +1,6 @@
 package com.dreamdisplays.platform.server.commands.subcommands
 
+import com.dreamdisplays.platform.client.utils.literalText
 import com.dreamdisplays.platform.server.ModLoaderOnly
 import com.dreamdisplays.api.media.source.MediaSource
 import com.dreamdisplays.shared.playback.PlaybackPermissions
@@ -16,6 +17,8 @@ import com.dreamdisplays.platform.server.meta.ServerCoroutines
 import com.dreamdisplays.platform.server.playback.PlaybackContexts
 import com.dreamdisplays.platform.server.playback.TimelineManager
 import com.dreamdisplays.platform.server.utils.MessageUtil
+import com.dreamdisplays.platform.server.utils.ServerMessage
+import com.dreamdisplays.platform.server.utils.sendTo
 import com.dreamdisplays.platform.server.utils.VanillaPermissions
 import com.dreamdisplays.platform.server.utils.net.CustomMediaGate
 import com.dreamdisplays.platform.server.utils.net.VanillaDisplayActions
@@ -40,14 +43,10 @@ class VideoCommand : SubCommand {
     override val permission = PaperServer.config.permissions.video
     override val playerOnly = true
 
-    /**
-     * Assigns a YouTube URL (and optional language) to the targeted display owned by the player,
-     * rebroadcasting the new state and resetting sync playback when the display was synced.
-     */
     override fun execute(sender: CommandSender, args: Array<String?>) {
         val player = (sender as? Player) ?: return
         if (args.size < 2) {
-            MessageUtil.sendMessage(player, "invalidURL")
+            ServerMessage.INVALID_URL.sendTo(player)
             return
         }
         val token = args[0] ?: "this"
@@ -56,7 +55,7 @@ class VideoCommand : SubCommand {
         // menu takes work here too, subject to the same server policy applied further down.
         val requestedUrl = canonicalUrl(args[1] ?: "")
         if (requestedUrl == null) {
-            MessageUtil.sendMessage(player, "invalidURL")
+            ServerMessage.INVALID_URL.sendTo(player)
             return
         }
 
@@ -66,7 +65,7 @@ class VideoCommand : SubCommand {
                 PlaybackContexts.of(data, player.uniqueId, player.hasPermission(PaperServer.config.permissions.deleteOthers))
             )
         ) {
-            MessageUtil.sendMessage(player, "displayVideoNotOwner")
+            ServerMessage.DISPLAY_VIDEO_NOT_OWNER.sendTo(player)
             return
         }
 
@@ -80,9 +79,15 @@ class VideoCommand : SubCommand {
             return
         }
 
+        val canonicalLang = LanguageTag.canonicalAudioCode(args.getOrNull(2)).value
+        ServerApiHost.current?.askSetUrl(data, requestedUrl, canonicalLang, player.uniqueId)?.let { reason ->
+            if (reason.isNotEmpty()) MessageUtil.sendColoredMessage(player, reason)
+            return
+        }
+
         data.apply {
             url = requestedUrl
-            lang = LanguageTag.canonicalAudioCode(args.getOrNull(2)).value
+            lang = canonicalLang
         }
 
         runAsync { PaperServer.getInstance().storage.saveDisplay(data) }
@@ -90,15 +95,14 @@ class VideoCommand : SubCommand {
         TimelineManager.onVideoChanged(data)
         ServerApiHost.current?.urlChanged(data)
 
-        MessageUtil.sendMessage(player, "settedURL")
+        ServerMessage.SETTED_URL.sendTo(player)
     }
 
-    /** Suggests known two-letter language codes when completing the third argument. */
     override fun complete(sender: CommandSender, args: Array<String?>): List<String> {
         if (args.size == 3) {
             return languageSuggestions
         }
-        return emptyList()
+        return []
     }
 
     companion object {
@@ -123,10 +127,6 @@ class VideoCommand : SubCommand {
     }
 }
 
-/**
- * Canonical URL for [raw] as typed on the command line, or null when it is not something the mod could ever play or is
- * blocked by [MediaUrlPolicy]. Routed through the same [MediaSource.from] parser the menu uses.
- */
 private fun canonicalUrl(raw: String): String? {
     val input = raw.trim()
     if (input.isEmpty()) return null
@@ -143,19 +143,19 @@ object VanillaVideoCommand {
     /** Assigns a YouTube URL (and optional language) to the targeted display, after validating ownership. */
     fun execute(ctx: CommandContext<CommandSourceStack>, token: String, urlAndLang: String): Int {
         val player = ctx.source.entity as? ServerPlayer
-            ?: return ctx.source.sendFailure(Component.literal("Players only.")).let { 0 }
+            ?: return ctx.source.sendFailure(literalText("Players only.")).let { 0 }
 
         val parts = urlAndLang.trim().split(" ")
         val urlRaw = parts[0]
         val langRaw = if (parts.size > 1) parts.last() else ""
 
         if (urlRaw.isBlank()) {
-            MessageUtil.sendMessage(player, "invalidURL")
+            ServerMessage.INVALID_URL.sendTo(player)
             return 0
         }
 
         val requestedUrl = canonicalUrl(urlRaw)
-            ?: return MessageUtil.sendMessage(player, "invalidURL").let { 0 }
+            ?: return ServerMessage.INVALID_URL.sendTo(player).let { 0 }
 
         val data = resolveVanillaDisplayTarget(player, token) as? VanillaDisplayData ?: return 0
 
@@ -163,7 +163,7 @@ object VanillaVideoCommand {
                 PlaybackContexts.of(data, player.uuid, VanillaDisplayActions.isAdmin(player))
             )
         ) {
-            MessageUtil.sendMessage(player, "displayVideoNotOwner")
+            ServerMessage.DISPLAY_VIDEO_NOT_OWNER.sendTo(player)
             return 0
         }
 
@@ -181,8 +181,14 @@ object VanillaVideoCommand {
             return 0
         }
 
+        val canonicalLang = LanguageTag.canonicalAudioCode(langRaw).value
+        ServerApiHost.current?.askSetUrl(data, requestedUrl, canonicalLang, player.uuid)?.let { reason ->
+            if (reason.isNotEmpty()) MessageUtil.sendColoredMessage(player, reason)
+            return 0
+        }
+
         data.url = requestedUrl
-        data.lang = LanguageTag.canonicalAudioCode(langRaw).value
+        data.lang = canonicalLang
         ServerCoroutines.io.launch { VanillaServerState.storage?.saveDisplay(data) }
 
         val receivers = DisplayManager.getReceivers(data, ctx.source.server)
@@ -190,7 +196,7 @@ object VanillaVideoCommand {
         TimelineManager.onVideoChanged(data)
         ServerApiHost.current?.urlChanged(data)
 
-        MessageUtil.sendMessage(player, "settedURL")
+        ServerMessage.SETTED_URL.sendTo(player)
         return 1
     }
 }

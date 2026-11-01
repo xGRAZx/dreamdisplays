@@ -11,13 +11,11 @@ internal object FrameMemoryBudget {
     private const val HEAP_SHARE = 0.3
     private const val MIN_BUDGET_BYTES = 384L * MIB
     private const val MAX_BUDGET_BYTES = 2048L * MIB
-
     private const val PACKET_CACHE_TOTAL_BYTES = 512L * MIB
     private const val MIN_PACKET_CACHE_BYTES = 16L * MIB
 
     private val frameBudgetBytes: Long =
-        System.getProperty("dreamdisplays.playback.frameBudgetMb")?.toLongOrNull()?.coerceAtLeast(64)?.times(MIB)
-            ?: (Runtime.getRuntime().maxMemory() * HEAP_SHARE).toLong().coerceIn(MIN_BUDGET_BYTES, MAX_BUDGET_BYTES)
+        (Runtime.getRuntime().maxMemory() * HEAP_SHARE).toLong().coerceIn(MIN_BUDGET_BYTES, MAX_BUDGET_BYTES)
 
     private val livePlaybacks = AtomicInteger()
 

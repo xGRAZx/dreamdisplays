@@ -1,5 +1,8 @@
 package com.dreamdisplays.platform.client.ui.widgets
 
+import com.dreamdisplays.platform.client.utils.buttonClickSound
+import com.dreamdisplays.platform.client.utils.translatableText
+import com.dreamdisplays.platform.client.ui.ClientMessage
 import com.dreamdisplays.api.media.search.MediaSearchResult
 import com.dreamdisplays.platform.client.input.MouseButtons
 import com.dreamdisplays.platform.client.render.Thumbnails
@@ -42,7 +45,7 @@ import kotlin.math.roundToInt
 class SuggestionsPanel(
     private val onPick: (MediaSearchResult) -> Unit,
     private val controller: SuggestionsController,
-) : UiWidget(Component.translatable("dreamdisplays.button.suggestions")) {
+) : UiWidget(ClientMessage.BUTTON_SUGGESTIONS.component()) {
 
     init {
         controller.onResults = { scrollOffset = 0; scrollOffsetF = 0f; targetScroll = 0 }
@@ -61,14 +64,10 @@ class SuggestionsPanel(
     var available: () -> Boolean = { true }
 
     private var scrollOffset: Int = 0
-
-    /** Sub-pixel shadow of [scrollOffset], eased toward [targetScroll] each frame; see [easeScroll]. */
     private var scrollOffsetF: Float = 0f
     private var targetScroll: Int = 0
     private var lastScrollFrameNanos = 0L
     private var hoveredCard: Int = -1
-
-    /** Scrollbar geometry captured in [drawScrollbar] so the mouse handlers can drag the thumb. */
     private var sbActive = false
     private var sbVertical = true
     private var sbStart = 0        // track origin along the scroll axis (stripTop / stripLeft)
@@ -76,8 +75,6 @@ class SuggestionsPanel(
     private var sbThumbLen = 0
     private var sbMaxOff = 0
     private var sbCross = 0        // the bar's fixed cross-axis coordinate (barX / barY)
-
-    /** True while the user is dragging the scrollbar thumb. */
     private var draggingScrollbar = false
     private var vertical: Boolean = false
     private var compactCards: Boolean = false
@@ -89,13 +86,20 @@ class SuggestionsPanel(
         val f = Minecraft.getInstance().font
         searchBox = EditBox(
             f, 0, 0, 100, SEARCH_H,
-            Component.translatable("dreamdisplays.suggestions.search"),
+            ClientMessage.SUGGESTIONS_SEARCH.component(),
         )
-        searchBox.setHint(Component.translatable("dreamdisplays.suggestions.search"))
+        //? if >=1.19.3 {
+        searchBox.setHint(ClientMessage.SUGGESTIONS_SEARCH.component())
+        //?}
         searchBox.setMaxLength(200)
         clearButton = IconButton(icon = { IconButton.modIcon("cross") }, margin = 4) {
             searchBox.value = ""
+            //? if >=1.19.4 {
             searchBox.isFocused = true
+            //?}
+            //? if <1.19.4 {
+            searchBox.setFocus(true)
+            //?}
         }
         sortButton = IconButton(icon = { IconButton.modIcon("filter") }, margin = 4) {
             sortDropdown.toggle()
@@ -124,7 +128,6 @@ class SuggestionsPanel(
     private fun stripLeft(): Int = x + 10
     private fun stripRight(): Int = x + width - 10
 
-    /** Positions the search box and its action buttons for the current panel rect. */
     private fun layoutChildren() {
         searchBox.x = x + 10
         searchBox.y = searchRowY()
@@ -134,42 +137,27 @@ class SuggestionsPanel(
         searchButton.place(UiRect(x + width - 10 - ACTION_W, searchRowY(), ACTION_W, SEARCH_H))
     }
 
-    /** Card width for the current orientation/viewport. */
     private fun cardW(viewportW: Int): Int =
         if (vertical) max(CARD_W, viewportW) else dynCardW()
 
-    /** Thumbnail height for the current orientation/viewport. */
     private fun thumbH(viewportW: Int): Int =
         if (vertical) max(THUMB_H, (cardW(viewportW) * 180.0 / 320.0).toInt()) else dynThumbH()
 
-    /**
-     * Card height for [info] at the current orientation / viewport.
-     */
     private fun cardH(viewportW: Int, info: MediaSearchResult): Int = when {
         !vertical -> dynCardH()
         compactCards -> THUMB_H + 4
         else -> thumbH(viewportW) + textBlockH(titleLineCount(Minecraft.getInstance().font, info, cardW(viewportW)))
     }
 
-    /**
-     * Worst-case card height (a two-line title) for the current orientation / viewport, for call sites
-     * with no particular card in hand yet — the loading-more placeholder, or a row-centering calc that
-     * only applies to the (always uniform) horizontal strip anyway.
-     */
     private fun maxCardH(viewportW: Int): Int = when {
         !vertical -> dynCardH()
         compactCards -> THUMB_H + 4
         else -> thumbH(viewportW) + textBlockH(2)
     }
 
-    /** Number of lines [info]'s title wraps to at the current card width (1 or 2). */
     private fun titleLineCount(f: Font, info: MediaSearchResult, cw: Int): Int =
         UiText.wrap(f, info.title, cw - 8, 2).size.coerceAtLeast(1)
 
-    /**
-     * Exact height [drawCard]'s title + meta block needs for a title wrapped to [lines] lines, plus a
-     * small fixed [BOTTOM_PAD] below the meta row.
-     */
     private fun textBlockH(lines: Int): Int {
         val lh = Minecraft.getInstance().font.lineHeight
         return 4 + lines * (lh + 1) + 1 + lh + BOTTOM_PAD
@@ -188,10 +176,6 @@ class SuggestionsPanel(
         return max(80, (th * CARD_W / THUMB_H.toDouble()).toInt())
     }
 
-    /**
-     * Total scrollable content extent along the scroll axis. Vertical cards no longer share one height,
-     * so this sums each card's own (unlike the horizontal strip, which stays a flat width × count).
-     */
     private fun contentExtent(viewportW: Int): Int {
         val cards = controller.visibleCards
         if (cards.isEmpty()) return 0
@@ -199,7 +183,6 @@ class SuggestionsPanel(
         return cards.sumOf { cardH(viewportW, it) + CARD_GAP } - CARD_GAP
     }
 
-    /** Maximum scroll offset for the current viewport. */
     private fun maxScroll(viewportW: Int, viewportH: Int): Int =
         max(0, contentExtent(viewportW) - if (vertical) viewportH else viewportW)
 
@@ -211,7 +194,7 @@ class SuggestionsPanel(
         g.drawText(f, message, x + 10, y + 10, UiTheme.TEXT_PRIMARY, false)
 
         if (!available()) {
-            val notice = Component.translatable("dreamdisplays.suggestions.unavailable").string
+            val notice = ClientMessage.SUGGESTIONS_UNAVAILABLE.component().string
             g.drawText(f, notice, x + 10, stripTop() + 6, UiTheme.TEXT_SECONDARY, false)
             return
         }
@@ -232,7 +215,7 @@ class SuggestionsPanel(
         lastStripH = stripH
 
         controller.statusKey?.let { key ->
-            val base = Component.translatable(key).string
+            val base = translatableText(key).string
             val msg = if (controller.isLoading) {
                 val elapsed = maxOf(0L, (System.currentTimeMillis() - controller.loadStartedAtMs) / 1000L)
                 base.replace(Regex("\\.+$"), "") + " • " + elapsed + "s"
@@ -310,7 +293,6 @@ class SuggestionsPanel(
         drawSortDropdown(g, mouseX, mouseY)
     }
 
-    /** Draws the sort dropdown last so it layers on top of the card strip below the search row. */
     private fun drawSortDropdown(g: GuiGraphicsCompat, mouseX: Int, mouseY: Int) {
         sortDropdown.draw(g, sortButton.x + sortButton.width / 2, sortButton.y + sortButton.height, mouseX, mouseY)
     }
@@ -324,7 +306,6 @@ class SuggestionsPanel(
         drawSortDropdown(g, mouseX, mouseY)
     }
 
-    /** Draws the thin scrollbar along the scroll axis when content overflows. */
     private fun drawScrollbar(
         g: GuiGraphicsCompat,
         stripLeft: Int, stripTop: Int, stripRight: Int, stripBottom: Int,
@@ -356,7 +337,6 @@ class SuggestionsPanel(
         }
     }
 
-    /** True when ([mx], [my]) is over the (thin) scrollbar column / row, within a forgiving grab margin. */
     private fun overScrollbar(mx: Double, my: Double): Boolean {
         if (!sbActive) return false
         val along = if (sbVertical) my else mx
@@ -389,11 +369,6 @@ class SuggestionsPanel(
         return current + diff * minOf(1f, dt * SCROLL_EASE_RATE)
     }
 
-    /**
-     * The registered card thumbnail for [info]. Results carrying a [MediaSearchResult.thumbnailUrlOverride]
-     * (e.g. Twitch) were registered under the raw id via the direct-URL path, so they're read from that
-     * same slot ([Thumbnails.get] defaults to the raw-key HIGH tier); YouTube ids use the id-derived LOW tier.
-     */
     private fun cardThumbnail(info: MediaSearchResult) = when {
         // An overridden thumbnail (Twitch / Vimeo / Kick) is registered under the raw id key
         info.thumbnailUrlOverride != null -> Thumbnails.get(info.id)
@@ -402,14 +377,12 @@ class SuggestionsPanel(
         else -> null
     }
 
-    /** True when [info]'s thumbnail fetch (via whichever key [cardThumbnail] reads) has already failed. */
     private fun cardThumbnailFailed(info: MediaSearchResult): Boolean = when {
         info.thumbnailUrlOverride != null -> Thumbnails.isFailed(info.id)
         info.isYouTubeResult -> Thumbnails.isFailed(info.id, Thumbnails.Quality.LOW)
         else -> false
     }
 
-    /** Requests [info]'s card thumbnail via the path matching [cardThumbnail]'s key, if not already loaded. */
     private fun requestCardThumbnail(info: MediaSearchResult) {
         val url = info.thumbnailUrlOverride
         when {
@@ -418,7 +391,6 @@ class SuggestionsPanel(
         }
     }
 
-    /** Draws one result card: hover-pulsing background, thumbnail, NEW/duration tags, title, and meta. */
     private fun drawCard(
         g: GuiGraphicsCompat, f: Font, info: MediaSearchResult,
         x: Int, y: Int, w: Int, thumbH: Int, cardH: Int, hover: Boolean,
@@ -461,7 +433,7 @@ class SuggestionsPanel(
             badge != null -> drawCardTag(
                 g,
                 f,
-                Component.translatable(badge.labelKey).string,
+                translatableText(badge.labelKey).string,
                 badge.bgColor,
                 badge.textColor,
                 thumbX,
@@ -471,7 +443,7 @@ class SuggestionsPanel(
             info.isRecent(7) -> drawCardTag(
                 g,
                 f,
-                Component.translatable("dreamdisplays.ui.new").string,
+                ClientMessage.UI_NEW.component().string,
                 UiTheme.ACCENT_NEW_TAG,
                 UiTheme.TEXT_PRIMARY,
                 thumbX,
@@ -545,7 +517,6 @@ class SuggestionsPanel(
         }
     }
 
-    /** Draws a small top-left tag ([label]) on a [bg] plate with [textColor] text. */
     private fun drawCardTag(
         g: GuiGraphicsCompat,
         f: Font,
@@ -564,11 +535,6 @@ class SuggestionsPanel(
         g.drawText(f, label, thumbX + 5, thumbY + 4, textColor, false)
     }
 
-    /**
-     * Stand-in card art for a card with no thumbnail to load - a custom link, or a platform result
-     * whose metadata carried none: a soft vertical plate with the source's host / uploader centered
-     * on it, so the card still carries the one fact worth knowing at a glance instead of a dead box.
-     */
     private fun drawCustomCardArt(
         g: GuiGraphicsCompat, f: Font, info: MediaSearchResult,
         x: Int, y: Int, w: Int, h: Int,
@@ -586,7 +552,13 @@ class SuggestionsPanel(
         /*g.blit(id, x, y, 0f, 0f, w, h, w, h)*/
     }
 
+    //? if >=1.20.2 {
     override fun mouseScrolled(mouseX: Double, mouseY: Double, dx: Double, dy: Double): Boolean {
+        //?} else
+        /*override fun mouseScrolled(mouseX: Double, mouseY: Double, delta: Double): Boolean =
+            mouseScrolled(mouseX, mouseY, 0.0, delta)
+
+        fun mouseScrolled(mouseX: Double, mouseY: Double, dx: Double, dy: Double): Boolean {*/
         if (!available()) return false
         if (!isMouseOver(mouseX, mouseY)) return false
         val stripTop = stripTop()
@@ -625,10 +597,20 @@ class SuggestionsPanel(
         if (searchButton.isMouseOver(mouseX, mouseY)) return searchButton.mouseClicked(event, dbl)
         if (searchBox.isMouseOver(mouseX, mouseY)) {
             val handled = searchBox.mouseClicked(event, dbl)
+            //? if >=1.19.4 {
             searchBox.isFocused = true
+            //?}
+            //? if <1.19.4 {
+            searchBox.setFocus(true)
+            //?}
             return handled
         }
+        //? if >=1.19.4 {
         searchBox.isFocused = false
+        //?}
+        //? if <1.19.4 {
+        searchBox.setFocus(false)
+        //?}
         if (MouseButtons.isLeft(event.button()) && overScrollbar(mouseX, mouseY)) {
             draggingScrollbar = true
             scrollFromPos(if (sbVertical) mouseY else mouseX)
@@ -638,7 +620,7 @@ class SuggestionsPanel(
         if (MouseButtons.isRight(event.button()) && forgetCardAt(mx, my)) return true
         val card = if (MouseButtons.isLeft(event.button())) cardAt(mouseX, mouseY) else -1
         if (card in controller.visibleCards.indices) {
-            val s = SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK.value(), 1.0f)
+            val s = SimpleSoundInstance.forUI(buttonClickSound(), 1.0f)
             Minecraft.getInstance().soundManager.play(s)
             onPick(controller.visibleCards[card])
             return true
@@ -673,10 +655,20 @@ class SuggestionsPanel(
         if (searchButton.isMouseOver(mouseX, mouseY)) return searchButton.mouseClicked(mouseX, mouseY, button)
         if (searchBox.isMouseOver(mouseX, mouseY)) {
             val handled = searchBox.mouseClicked(mouseX, mouseY, button)
+            //? if >=1.19.4 {
             searchBox.isFocused = true
+            //?}
+            //? if <1.19.4 {
+            searchBox.setFocus(true)
+            //?}
             return handled
         }
+        //? if >=1.19.4 {
         searchBox.isFocused = false
+        //?}
+        //? if <1.19.4 {
+        searchBox.setFocus(false)
+        //?}
         if (button == 0 && overScrollbar(mouseX, mouseY)) {
             draggingScrollbar = true
             scrollFromPos(if (sbVertical) mouseY else mouseX)
@@ -686,7 +678,7 @@ class SuggestionsPanel(
         if (button == 1 && forgetCardAt(mx, my)) return true
         val card = if (button == 0) cardAt(mouseX, mouseY) else -1
         if (card in controller.visibleCards.indices) {
-            val s = SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK.value(), 1.0f)
+            val s = SimpleSoundInstance.forUI(buttonClickSound(), 1.0f)
             Minecraft.getInstance().soundManager.play(s)
             onPick(controller.visibleCards[card])
             return true
@@ -710,16 +702,11 @@ class SuggestionsPanel(
         return super.mouseReleased(mouseX, mouseY, button)
     }*/
 
-    /**
-     * Handles a right-click at ([mx], [my]): forgets the remembered custom link under the cursor,
-     * with a soft click. Returns true only when a forgettable card was actually hit, so a
-     * right-click that lands on a normal search result falls through untouched.
-     */
     private fun forgetCardAt(mx: Int, my: Int): Boolean {
         val card = cardAt(mx.toDouble(), my.toDouble())
         val result = controller.visibleCards.getOrNull(card) ?: return false
         if (!controller.forgetCustom(result)) return false
-        val s = SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK.value(), 0.7f)
+        val s = SimpleSoundInstance.forUI(buttonClickSound(), 0.7f)
         Minecraft.getInstance().soundManager.play(s)
         return true
     }
@@ -798,10 +785,7 @@ class SuggestionsPanel(
 
     companion object {
         private const val HEADER_H = 14
-
         private const val SCROLL_EASE_RATE = 8f
-
-        /** Extra px around the thin scrollbar that still grabs it (a forgiving drag target). */
         private const val SB_GRAB = 4
         private const val CARD_GAP = 6
         private const val CARD_W = 152
@@ -812,10 +796,7 @@ class SuggestionsPanel(
         private const val SEARCH_H = 22
         private const val ACTION_W = SEARCH_H
         private const val ACTION_GAP = 4
-
-        /** Internal vertical paddings a card adds around its thumbnail + text (see [dynThumbH]/[dynCardH]). */
         private const val CARD_INNER_PAD = 2 + 3 + 2
-
         private const val BOTTOM_MARGIN = 6
 
         /**

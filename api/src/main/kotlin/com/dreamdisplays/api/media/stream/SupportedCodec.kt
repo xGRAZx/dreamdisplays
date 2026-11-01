@@ -1,6 +1,5 @@
 package com.dreamdisplays.api.media.stream
 
-import com.dreamdisplays.api.Unstable
 import com.dreamdisplays.api.util.WireEnum
 import com.dreamdisplays.api.util.wireEnumValueOf
 
@@ -9,7 +8,6 @@ import com.dreamdisplays.api.util.wireEnumValueOf
  *
  * @since 1.8.x
  */
-@Unstable
 enum class SupportedCodec(override val wire: String, private vararg val prefixes: String) : WireEnum {
     /** H.264 / AVC video. */
     H264("h264", "avc", "h264"),
@@ -28,7 +26,7 @@ enum class SupportedCodec(override val wire: String, private vararg val prefixes
 
     companion object {
         /** Codecs advertised by the default client capability detector. */
-        val advertised: List<SupportedCodec> = listOf(H264, HEVC, VP9, AV1)
+        val advertised: List<SupportedCodec> = [H264, HEVC, VP9, AV1]
 
         /** Returns the enum value corresponding to the given wire value, or [UNKNOWN] if not found. */
         fun fromWire(raw: String?): SupportedCodec = wireEnumValueOf(raw, UNKNOWN, entries)

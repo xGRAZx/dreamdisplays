@@ -11,7 +11,10 @@ import com.dreamdisplays.platform.client.audiorange.AudioRangeClient
 import com.dreamdisplays.platform.client.capabilities.CapabilityNegotiationService
 import com.dreamdisplays.platform.client.core.DreamServices
 import com.dreamdisplays.platform.client.displays.DisplayRegistry
+//? if >=1.20.5 {
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload
+//?} else
+/*import com.dreamdisplays.platform.client.net.compat.CustomPacketPayload*/
 import org.slf4j.LoggerFactory
 
 /**
@@ -19,10 +22,7 @@ import org.slf4j.LoggerFactory
  * raw payload sender bound to the platform [Mod] implementation.
  */
 object ClientPacketManager {
-    /** Logger. */
     private val logger = LoggerFactory.getLogger(javaClass)
-
-    /** The platform [Mod] used to send raw payloads; set via [bind]. */
     private lateinit var mod: Mod
 
     /** The latest applied [ServerHello]. */
@@ -63,7 +63,6 @@ object ClientPacketManager {
         }
     }
 
-    /** Replaces the capability snapshot wholesale and mirrors the flags into the client state. */
     private fun applyServerHello(packet: ServerHello) {
         serverSnapshot = packet
         ClientStateManager.isPremium = packet.isPremium
@@ -75,14 +74,12 @@ object ClientPacketManager {
         Initializer.sendPacket(SetDisplaysEnabled(ClientStateManager.displaysEnabled))
     }
 
-    /** Server-forced display toggle (admin command), persisted like the legacy channel did. */
     private fun applyDisplaysEnabled(enabled: Boolean) {
         ClientStateManager.displaysEnabled = enabled
         ClientStateManager.config.displaysEnabled = enabled
         ClientStateManager.config.save()
     }
 
-    /** Removes a deleted display from the registry and erases its saved data. */
     private fun handleDelete(packet: DisplayDelete) {
         DisplayRegistry.screens[packet.id]?.let { DisplayRegistry.unregisterScreen(it) }
         DisplayRegistry.unloadedScreens.remove(packet.id)
@@ -90,7 +87,6 @@ object ClientPacketManager {
         logger.info("Display deleted and removed from saved data: ${packet.id}.")
     }
 
-    /** Drops the listed displays from the registry (active or unloaded), display system, and saved data. */
     private fun handleClearCache(packet: ClearCache) {
         packet.ids.forEach { uuid ->
             DisplayRegistry.screens[uuid]?.let { DisplayRegistry.unregisterScreen(it) }

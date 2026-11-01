@@ -36,6 +36,9 @@ repositories {
     maven("https://maven.neoforged.net/releases")
     maven("https://prmaven.neoforged.net/NeoForge/pr3403")
     maven("https://maven.enginehub.org/repo/")
+    maven("https://maven.shedaniel.me/") {
+        content { includeGroup("me.shedaniel.cloth") }
+    }
     maven("https://api.modrinth.com/maven") {
         content { includeGroup("maven.modrinth") }
     }
@@ -48,6 +51,12 @@ fun scVersion(name: String): String = scVersions.get(name)
 // Legacy (obfuscated) Minecraft targets need layered Mojang+Parchment mappings and modImplementation;
 // year-versioned (deobfuscated) targets resolve the source set directly with plain implementation.
 val isLegacyObfuscated = scVersion("minecraft.version").startsWith("1.")
+val hasNeoForge = scVersions.getOrNull("neoforge.version") != null
+val clothConfigFabric = scVersions.getOrNull("cloth.config.fabric") ?: "${scVersion("cloth.config.version")}+fabric"
+
+// The rendertype package only exists from 1.21.11
+val hasRenderTypePackage = (scVersion("minecraft.version").split(".").map { it.toIntOrNull() ?: 0 } + listOf(0, 0, 0))
+    .let { (major, minor, patch) -> major * 1_000_000 + minor * 1_000 + patch >= 1_021_011 }
 
 fun fancyModLoaderVersion(neoForgeVersion: String): String = when (neoForgeVersion) {
     "21.1.233" -> "4.0.42"
@@ -73,6 +82,7 @@ platformweaver {
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
     dependsOn(":platform:server:chiselSource")
+    if (!hasNeoForge) exclude("**/*NeoForge*.kt")
 }
 tasks.matching { it.name == "sourcesJar" }.configureEach {
     dependsOn(":platform:server:chiselSource")
@@ -81,10 +91,6 @@ tasks.matching { it.name == "sourcesJar" }.configureEach {
 val sourceClassTweaker = project(":platform:client:common").file("src/main/resources/dreamdisplays.classtweaker")
 val classTweakerNamespace = if (isLegacyObfuscated) "named" else "official"
 val generatedClassTweaker = layout.buildDirectory.file("generated/classtweaker/dreamdisplays.classtweaker").get().asFile
-// The rendertype package only exists from 1.21.11; older targets drop those entries instead of making
-// the loader warn about (and skip) a class that is not there.
-val hasRenderTypePackage = (scVersion("minecraft.version").split(".").map { it.toIntOrNull() ?: 0 } + listOf(0, 0, 0))
-    .let { (major, minor, patch) -> major * 1_000_000 + minor * 1_000 + patch >= 1_021_011 }
 run {
     val rewritten = sourceClassTweaker.readText().lineSequence()
         .filter { hasRenderTypePackage || "net/minecraft/client/renderer/rendertype/" !in it }
@@ -125,18 +131,27 @@ val isolatedSqliteJdbc = configurations.register("isolatedSqliteJdbc") {
     isTransitive = false
 }
 
+val javaNewerCompileApis: Configuration = configurations.create("javaNewerCompileApis") {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+    attributes { attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 21) }
+}
+
 dependencies {
-    compileOnly(libs.platformweaverAnnotations)
+    javaNewerCompileApis(libs.platformweaverAnnotations)
+    compileOnly(files(javaNewerCompileApis))
     compileOnly(libs.luckpermsApi)
-    compileOnly(libs.worldguardApi) {
+    javaNewerCompileApis(libs.worldguardApi) {
         exclude(group = "com.google.guava", module = "guava")
         exclude(group = "com.google.code.gson", module = "gson")
         exclude(group = "it.unimi.dsi", module = "fastutil")
     }
     compileOnly("io.papermc.paper:paper-api:${scVersion("paper.api.version")}")
-    compileOnly("net.neoforged:neoforge:${scVersion("neoforge.version")}:universal")
-    compileOnly("net.neoforged:bus:8.0.5")
-    compileOnly("net.neoforged.fancymodloader:loader:${fancyModLoaderVersion(scVersion("neoforge.version"))}")
+    if (hasNeoForge) {
+        compileOnly("net.neoforged:neoforge:${scVersion("neoforge.version")}:universal")
+        compileOnly("net.neoforged:bus:8.0.5")
+        compileOnly("net.neoforged.fancymodloader:loader:${fancyModLoaderVersion(scVersion("neoforge.version"))}")
+    }
     implementation(libs.bstats)
     implementation(libs.tomlj)
     implementation(libs.semver4j)
@@ -161,14 +176,15 @@ dependencies {
         "modImplementation"("net.fabricmc.fabric-api:fabric-api:${scVersion("fabric.api.version")}")
         "modCompileOnly"("maven.modrinth:modmenu:${scVersion("modmenu.version")}")
         "modLocalRuntime"("maven.modrinth:modmenu:${scVersion("modmenu.version")}")
-        "modLocalRuntime"("maven.modrinth:cloth-config:${scVersion("cloth.config.version")}+fabric")
+        "modLocalRuntime"("maven.modrinth:cloth-config:$clothConfigFabric")
     } else {
         compileOnly("maven.modrinth:modmenu:${scVersion("modmenu.version")}")
         "localRuntime"("maven.modrinth:modmenu:${scVersion("modmenu.version")}")
-        "localRuntime"("maven.modrinth:cloth-config:${scVersion("cloth.config.version")}+fabric")
+        "localRuntime"("maven.modrinth:cloth-config:$clothConfigFabric")
         implementation("net.fabricmc:fabric-loader:${scVersion("fabric.loader.version")}")
         implementation("net.fabricmc.fabric-api:fabric-api:${scVersion("fabric.api.version")}")
     }
+    "localRuntime"("me.shedaniel.cloth:basic-math:0.6.1")
     implementation(project(":platform:client:common"))
     shadow(project(":core"))
     shadow(project(":api"))
@@ -193,6 +209,7 @@ dependencies {
     shadow(libs.exposedMigrationJdbc)
     shadow(libs.hikari)
     shadow(libs.newpipeExtractor)
+    scVersions.getOrNull("joml.version")?.let { shadow("org.joml:joml:$it") }
 }
 
 tasks.processResources {
@@ -258,6 +275,11 @@ tasks.shadowJar {
     }
     includeDreamDisplaysSharedContents()
     relocateDreamDisplaysSharedPackages()
+    // Bundled only where Minecraft has no JOML of its own; elsewhere the references are Minecraft's and must stay put
+    if (scVersions.getOrNull("joml.version") != null) {
+        dependencies { include(dependency("org.joml:joml")) }
+        relocate("org.joml", "com.dreamdisplays.libs.org.joml")
+    }
     from(trimmedSqliteJdbc) {
         into("META-INF/dreamdisplays")
     }

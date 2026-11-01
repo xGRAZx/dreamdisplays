@@ -1,6 +1,5 @@
 package com.dreamdisplays.api.display.model.property
 
-import com.dreamdisplays.api.Unstable
 import kotlinx.serialization.Serializable
 
 /**
@@ -8,7 +7,6 @@ import kotlinx.serialization.Serializable
  *
  * @since 1.0.x
  */
-@Unstable
 @Serializable
 enum class DisplayFacing(val byte: Byte) {
     /** Facing north (−Z). */
@@ -41,7 +39,6 @@ enum class DisplayFacing(val byte: Byte) {
         }
 
     companion object {
-        /** Decodes a [DisplayFacing] from its [byte] wire value; errors on an unknown byte. */
         fun fromByte(byte: Byte): DisplayFacing =
             entries.firstOrNull { it.byte == byte } ?: error("Unknown facing byte: $byte.")
     }

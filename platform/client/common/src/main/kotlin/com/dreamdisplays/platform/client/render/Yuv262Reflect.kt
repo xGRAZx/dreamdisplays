@@ -1,6 +1,7 @@
 //? if >=1.21.11 {
 package com.dreamdisplays.platform.client.render
 
+import com.dreamdisplays.platform.client.utils.identifier
 import com.dreamdisplays.platform.client.Initializer
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.DefaultVertexFormat
@@ -26,26 +27,20 @@ internal object Yuv262Reflect {
         }.isSuccess
     }
 
-    /** Cached `BindGroupLayout` class handle. */
     private val bglClass: Class<*> by lazy { Class.forName("com.mojang.blaze3d.pipeline.BindGroupLayout") }
-
-    /** Cached `GpuFormat` class handle. */
     private val gpuFormatClass: Class<*> by lazy { Class.forName("com.mojang.blaze3d.GpuFormat") }
 
-    /** The `GpuFormat.R8_UNORM` enum constant, resolved reflectively. */
     private val gpuFormatR8: Any by lazy {
         RenderPipelineCompat.reflectiveEnumValue(gpuFormatClass, "R8_UNORM")
     }
 
-    /** Looks up a vanilla [net.minecraft.client.renderer.BindGroupLayouts] constant. */
     private fun vanillaLayout(name: String): Any =
         Class.forName("net.minecraft.client.renderer.BindGroupLayouts").getField(name).get(null)
 
-    /** Builds the BindGroupLayout holding the three plane samplers. */
     private fun samplerLayout(): Any {
         val builder = bglClass.getMethod("builder").invoke(null)
         val withSampler = builder.javaClass.getMethod("withSampler", String::class.java)
-        for (name in listOf("Sampler0", "Sampler1", "Sampler3")) {
+        for (name in ["Sampler0", "Sampler1", "Sampler3"]) {
             withSampler.invoke(builder, name)
         }
         return builder.javaClass.getMethod("build").invoke(builder)
@@ -72,13 +67,13 @@ internal object Yuv262Reflect {
         val quads = RenderPipelineCompat.reflectiveEnumValue(topologyClass, "QUADS")
         builderClass.getMethod("withPrimitiveTopology", topologyClass).invoke(builder, quads)
 
-        builder.withLocation(Identifier.fromNamespaceAndPath(Initializer.MOD_ID, "pipeline/display_yuv"))
-        builder.withVertexShader(Identifier.fromNamespaceAndPath(Initializer.MOD_ID, "core/display_fog" +
+        builder.withLocation(identifier(Initializer.MOD_ID, "pipeline/display_yuv"))
+        builder.withVertexShader(identifier(Initializer.MOD_ID, "core/display_fog" +
             //? if >=26.3 {
             "_rp"
             //?} else
             /*""*/))
-        builder.withFragmentShader(Identifier.fromNamespaceAndPath(Initializer.MOD_ID, "core/display_yuv" +
+        builder.withFragmentShader(identifier(Initializer.MOD_ID, "core/display_yuv" +
             //? if >=26.3 {
             "_rp"
             //?} else

@@ -1,6 +1,5 @@
 package com.dreamdisplays.api.server
 
-import com.dreamdisplays.api.Unstable
 import com.dreamdisplays.api.display.model.property.DisplayFacing
 import java.util.UUID
 import java.util.function.Predicate
@@ -10,15 +9,14 @@ import java.util.function.Predicate
  *
  * @since 1.10.x
  */
-@Unstable
 interface ServerDisplays : Iterable<ServerDisplay> {
     /** Number of displays in this view. */
     val size: Int
 
-    /** The display with [id], or null. */
+    /** The display with [id], or `null`. */
     operator fun get(id: UUID): ServerDisplay?
 
-    /** The display called [name], or null. */
+    /** The display called [name], or `null`. */
     fun byName(name: String): ServerDisplay?
 
     /** Keeps only displays owned by [owner]. */

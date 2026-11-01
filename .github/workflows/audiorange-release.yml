@@ -1,7 +1,7 @@
 name: AltDisplays release
 
 # Publishes an AltDisplays build (Dream Displays with the audiorange features) for the server owner
-# and players: a GitHub release with just the Minecraft 1.21.11 mod and the Paper plugin, under a
+# and players: a GitHub release with just the Minecraft 1.21.11 mod (Fabric and NeoForge) and the Paper plugin, under a
 # link that always points at the newest one (https://github.com/<owner>/dreamdisplays/releases/latest).
 # Runs when ALTDISPLAYS_VERSION changes on the work branch or main (the release then creates the
 # alt-<version> tag itself), for `alt-<version>` tags, or from the Actions tab with a version,
@@ -109,6 +109,7 @@ jobs:
         run: |
           mkdir release
           cp "jars/dreamdisplays-fabric-$MC-$VERSION.jar" "release/AltDisplays-$RELEASE-$MC-Fabric-by-GRAZ.jar"
+          cp "jars/dreamdisplays-neoforge-$MC-$VERSION.jar" "release/AltDisplays-$RELEASE-$MC-NeoForge-by-GRAZ.jar"
           paper=$(ls jars/dreamdisplays-paper-*.jar | grep -Ev -- '-(sources|javadoc|dev-shadow)\.jar$' | head -1)
           if [ -z "$paper" ]; then
             echo "::error::No Paper plugin jar in build-jars-$MC."
@@ -122,12 +123,13 @@ jobs:
           cat > notes.md <<EOF
           **AltDisplays $RELEASE** for Minecraft $MC, by GRAZ (Dream Displays $VERSION with audiorange build $BUILD).
 
-          - \`AltDisplays-$RELEASE-$MC-Fabric-by-GRAZ.jar\`: the mod, for everyone (players and admins). Put it in \`mods\`.
+          - \`AltDisplays-$RELEASE-$MC-Fabric-by-GRAZ.jar\`: the mod for Fabric, for everyone (players and admins). Put it in \`mods\`.
+          - \`AltDisplays-$RELEASE-$MC-NeoForge-by-GRAZ.jar\`: the same mod for NeoForge. Put it in \`mods\`.
           - \`AltDisplays-$RELEASE-$MC-Paper-by-GRAZ.jar\`: the server plugin. Put it in \`plugins\`.
 
           Use the mod and the plugin from the same release. Admin features need the permission \`dreamdisplays.audio\`.
 
-          Tested before publishing: Fabric and Paper servers start with these files, and the game client joins a world.
+          Tested before publishing: Fabric, NeoForge and Paper servers start with these files, and the Fabric and NeoForge game clients join a world.
           EOF
 
       - name: Publish the release

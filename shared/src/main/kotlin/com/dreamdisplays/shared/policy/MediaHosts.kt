@@ -1,6 +1,5 @@
 package com.dreamdisplays.shared.policy
 
-import com.dreamdisplays.api.Unstable
 import com.dreamdisplays.api.media.source.MediaPlatform
 import java.net.URI
 import java.util.*
@@ -12,18 +11,17 @@ import java.util.*
  * The distinction drives how a request is made rather than whether it is made: a host nobody
  * vouched for gets no identifying headers, tighter limits, and has to prove it really serves media.
  */
-@Unstable
 object MediaHosts {
-    private val PLATFORM_DOMAINS: List<Pair<MediaPlatform, List<String>>> = listOf(
-        MediaPlatform.YOUTUBE to listOf(
+    private val PLATFORM_DOMAINS: List<Pair<MediaPlatform, List<String>>> = [
+        MediaPlatform.YOUTUBE to [
             "youtube.com", "youtu.be", "youtube-nocookie.com", "ytimg.com", "ggpht.com",
             "googlevideo.com", "googleusercontent.com", "youtubei.googleapis.com",
-        ),
-        MediaPlatform.TWITCH to listOf("twitch.tv", "ttvnw.net", "jtvnw.net", "live-video.net"),
-        MediaPlatform.VIMEO to listOf("vimeo.com", "vimeocdn.com"),
-        MediaPlatform.KICK to listOf("kick.com"),
-        MediaPlatform.BILIBILI to listOf("bilibili.com", "hdslb.com", "bilivideo.com"),
-    )
+        ],
+        MediaPlatform.TWITCH to ["twitch.tv", "ttvnw.net", "jtvnw.net", "live-video.net"],
+        MediaPlatform.VIMEO to ["vimeo.com", "vimeocdn.com"],
+        MediaPlatform.KICK to ["kick.com"],
+        MediaPlatform.BILIBILI to ["bilibili.com", "hdslb.com", "bilivideo.com"],
+    ]
 
     private val PLATFORM_REFERERS: Map<MediaPlatform, String> = mapOf(
         MediaPlatform.YOUTUBE to "https://www.youtube.com/",

@@ -16,16 +16,9 @@ import java.util.concurrent.ConcurrentHashMap
 @PaperOnly
 @NullMarked
 object Scheduler {
-    /** The plugin instance that owns this scheduler. */
     private lateinit var plugin: Plugin
-
-    /** A map of tracked players, used for `Folia` compatibility. */
     private val trackedPlayers: MutableMap<UUID, Player> = ConcurrentHashMap()
-
-    /** A map of tracked player names, used for `Folia` compatibility. */
     private val trackedNames: MutableMap<UUID, String> = ConcurrentHashMap()
-
-    /** A map of tracked admin flags, used for `Folia` compatibility. */
     private val trackedAdmins: MutableMap<UUID, Boolean> = ConcurrentHashMap()
 
     /** Binds the scheduler to its owning [plugin]. Must be called before any scheduling helper. */
@@ -37,9 +30,10 @@ object Scheduler {
         plugin.server.onlinePlayers.forEach(::trackPlayer)
     }
 
-    /** Runs [task] off the main / global thread using `Paper`'s async scheduler. */
+    /** Runs [task] off the main / global thread. `Paper` only gained its own async scheduler in 1.20, alongside `Folia`. */
     fun runAsync(task: Runnable) {
-        plugin.server.asyncScheduler.runNow(plugin) { task.run() }
+        if (isFolia) plugin.server.asyncScheduler.runNow(plugin) { task.run() }
+        else plugin.server.scheduler.runTaskAsynchronously(plugin, task)
     }
 
     /** Runs [task] on the main / global region thread. Do not touch region-owned entities from this helper on `Folia`. */
@@ -138,7 +132,6 @@ object Scheduler {
     /** Cached admin flag safe to read from `Folia` global / async coordinators. */
     fun trackedPlayerIsAdmin(playerId: UUID): Boolean = trackedAdmins[playerId] == true
 
-    /** Updates the tracked player snapshot for [player]. */
     private fun refreshPlayerSnapshot(player: Player) {
         trackedNames[player.uniqueId] = player.name
         trackedAdmins[player.uniqueId] = player.hasPermission(PaperServer.config.permissions.deleteOthers)

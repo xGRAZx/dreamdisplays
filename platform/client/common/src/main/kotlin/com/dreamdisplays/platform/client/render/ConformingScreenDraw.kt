@@ -26,7 +26,6 @@ internal object ConformingScreenDraw {
     private class Clip(val source: List<ConformQuad>, val rect: FloatArray, val pieces: List<ConformQuad>)
 
     private val clips = WeakHashMap<DisplayScreen, Array<Clip?>>()
-
     private const val SLOT_SUBTITLE = 0
     private const val SLOT_TRACK = 1
 
@@ -160,6 +159,7 @@ internal object ConformingScreenDraw {
         g: Int,
         b: Int,
     ) {
+        //? if >=1.21.1 {
         builder.addVertex(
             pose,
             vertex.x + vertex.ox * clearance,
@@ -168,5 +168,15 @@ internal object ConformingScreenDraw {
         )
             .setUv(vertex.u, vertex.v)
             .setColor(r, g, b, 255)
+        //?} else
+        /*builder.vertex(
+            pose.pose(),
+            vertex.x + vertex.ox * clearance,
+            vertex.y + vertex.oy * clearance,
+            vertex.z + vertex.oz * clearance,
+        )
+            .uv(vertex.u, vertex.v)
+            .color(r, g, b, 255)
+            .endVertex()*/
     }
 }

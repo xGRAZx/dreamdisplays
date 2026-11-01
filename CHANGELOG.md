@@ -1,3 +1,144 @@
+# 1.10.8 Release
+
+## Highlights
+
+- Improved selection logic
+- Marked API as stable
+
+## Server
+
+## Client
+
+### Improvements
+
+- Marked API as stable
+
+## Server
+
+### Improvements
+
+- Improved selection logic
+
+# 1.10.7 Release
+
+## Highlights
+
+- Playback fixes and minor improvements
+- Updated `FFmpeg` to 9.0 on every platform
+- API improvements
+
+## Client
+
+### Features
+
+- Removed LOD feature that was introduced in 1.10.1
+- API: added `Events`, a single way to listen to display events
+- API: `Display.on(...)` and `Display.watch(...)` are deprecated in favor of `Display.events`
+
+### Improvements
+
+- Updated `FFmpeg` to 9.0 on every platform
+- Already downloaded copies of `FFmpeg` are now replaced automatically when the mod moves to a new
+  `FFmpeg` version, instead of being kept forever
+- Changed order of version publishing
+- Minor codebase improvements
+
+### Fixes
+
+- Fixed videos not playing at all on Intel Macs for anyone who hadn't downloaded `FFmpeg` yet
+- Fixed video quality switching back and forth every few seconds at some distances
+  ([#269](https://github.com/arnodoelinger/dreamdisplays/issues/269))
+- API: fixed the API reporting a display as "preparing" while its video is already playing
+  ([#268](https://github.com/arnodoelinger/dreamdisplays/issues/268))
+
+## Server
+
+### Features
+
+- API: added `DreamDisplaysServer.events` to listen to a single type of display event
+- API: added `DreamDisplaysServer.vetoes`: plugins can refuse a video change, creating a display or removing one before 
+  it happens, with a reason shown to the player
+- API: added `ServerDisplay.events` to listen to a single display; it ends by itself when the display is removed
+- API: `DreamDisplaysServer.on(...)` is deprecated in favor of `DreamDisplaysServer.events`
+
+# 1.10.6 Release
+
+## Highlights
+
+- Hotfix: crash on button click
+
+## Client
+
+### Fixes
+
+- Fixed crash on button click ([#266](https://github.com/arnodoelinger/dreamdisplays/issues/266))
+- Orient loading bar to display content rotation
+
+## Server
+
+No changes.
+
+# 1.10.5 Release
+
+## Highlights
+
+- Added support for 1.18.2, 1.19.4, and 1.20.1 versions for both `Fabric` and `Forge` loaders and servers
+
+## Client
+
+### Features
+
+- Added support for 1.18.2, 1.19.4, and 1.20.1 versions for `Fabric` and `Forge`
+
+## Server
+
+### Features
+
+- Added support for 1.18.2, 1.19.4, and 1.20.1 versions for `Fabric`, `Forge`, and `Paper` servers
+
+# 1.10.4 Release
+
+## Highlights
+
+- Selection particles now work on `Fabric` and `NeoForge` servers too
+- Fixed `Quilt` support, both single-player and server
+- Fixed missing chat colors in single-player
+- Minor codebase, API improvements and other fixes
+
+## Client
+
+### Features
+
+- API: added `dependsOn` to `@Addon`: an addon is enabled after the addons it depends on and disabled before them
+
+### Improvements
+
+- Updated dependencies
+- Minor codebase improvements
+- Minor improvements in API docs
+
+### Fixes
+
+- Fixed `Dream Displays`' single-player not working on `Quilt`
+- Fixed the crosshair and HUD not hiding when looking at a display on `26.1.2`
+- Removed a harmless "missing class" warning at startup on 1.21.1
+- Fixed `Dream Displays` chat messages losing their colors in single-player
+
+## Server
+
+### Features
+
+- Selection particles now also work on `Fabric` and `NeoForge` servers
+
+### Improvements
+
+- Minor codebase improvements
+
+### Fixes
+
+- Fixed `Dream Displays`' server side not starting on `Quilt`
+- Fixed `particles_color` being ignored: the selection outline was always cyan
+
 # 1.10.3 Release
 
 ## Highlights

@@ -1,5 +1,7 @@
 package com.dreamdisplays.platform.client.ui.menu
 
+import com.dreamdisplays.platform.client.utils.buttonClickSound
+import com.dreamdisplays.platform.client.ui.ClientMessage
 import com.dreamdisplays.api.media.stream.SubtitleTrack
 import com.dreamdisplays.platform.client.ui.GuiGraphicsCompat
 import com.dreamdisplays.platform.client.ui.drawText
@@ -12,7 +14,6 @@ import com.mojang.blaze3d.platform.cursor.CursorTypes
 //?}
 import net.minecraft.client.Minecraft
 import net.minecraft.client.resources.sounds.SimpleSoundInstance
-import net.minecraft.network.chat.Component
 import net.minecraft.sounds.SoundEvents
 import kotlin.math.abs
 import kotlin.math.max
@@ -31,31 +32,24 @@ class SubtitleDropdown(
 ) {
     var visible: Boolean = false
 
-    private var items: List<SubtitleTrack?> = listOf(null)
-
+    private var items: List<SubtitleTrack?> = [null]
     private var scrollIndex = 0
-
     private var scrollPx = 0f
-
     private var rect = UiRect(0, 0, WIDTH, ITEM_H)
-
     private var animProgress = 0f
     private var lastFrameNanos = 0L
-
     private var visibleCount = 0
-
     private var sbPaged = false
     private var sbColLeft = 0
     private var sbColRight = 0
     private var sbTrackTop = 0
     private var sbTrackBottom = 0
-
     private var draggingScrollbar = false
 
     fun toggle() {
         visible = !visible
         if (!visible) return
-        items = listOf(null) + getTracks()
+        items = [null] + getTracks()
         val maxIndex = maxScrollIndex()
         val activeIdx = items.indexOfFirst { it?.lang == currentLang() }.takeIf { it >= 0 } ?: 0
         scrollIndex = (activeIdx - MAX_VISIBLE / 2).coerceIn(0, maxIndex)
@@ -70,7 +64,7 @@ class SubtitleDropdown(
     private fun maxScrollIndex(): Int = (items.size - MAX_VISIBLE).coerceAtLeast(0)
 
     private fun label(track: SubtitleTrack?): String =
-        track?.displayName ?: track?.lang ?: Component.translatable("dreamdisplays.ui.subtitles_off").string
+        track?.displayName ?: track?.lang ?: ClientMessage.UI_SUBTITLES_OFF.component().string
 
     fun draw(g: GuiGraphicsCompat, anchorCenterX: Int, anchorY: Int, mouseX: Int, mouseY: Int) {
         val now = System.nanoTime()
@@ -193,7 +187,7 @@ class SubtitleDropdown(
         if (!inside || items.isEmpty()) return false
         val rowTop = rect.y + PAD_V
         val index = ((my - rowTop + scrollPx) / ITEM_H).toInt().coerceIn(0, items.size - 1)
-        val s = SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK.value(), 1.0f)
+        val s = SimpleSoundInstance.forUI(buttonClickSound(), 1.0f)
         Minecraft.getInstance().soundManager.play(s)
         onSelect(items[index])
         return true
@@ -245,9 +239,7 @@ class SubtitleDropdown(
         private const val SCROLLBAR_W = 5
         private const val MIN_THUMB_H = 6
         private const val SCROLLBAR_MARGIN = 0
-
         private const val SB_GRAB = 3
-
         private const val SCROLL_EASE_RATE = 8f
     }
 }

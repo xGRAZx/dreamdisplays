@@ -1,5 +1,9 @@
 package com.dreamdisplays.platform.client.ui.kit
 
+//? if <1.20.2 {
+import com.dreamdisplays.platform.client.ui.blitSprite
+//?}
+import com.dreamdisplays.platform.client.utils.identifier
 import com.dreamdisplays.platform.client.Initializer
 import com.dreamdisplays.platform.client.ui.GuiGraphicsCompat
 import com.dreamdisplays.platform.client.ui.drawText
@@ -7,7 +11,14 @@ import net.minecraft.client.gui.Font
 //? if >=26 {
 import net.minecraft.client.gui.GuiGraphicsExtractor
 //?} else
-/*import net.minecraft.client.gui.GuiGraphics*/
+/*
+//? if >=1.20 {
+import net.minecraft.client.gui.GuiGraphics
+//?}
+//? if <1.20 {
+import com.dreamdisplays.platform.client.ui.compat.GuiGraphics
+//?}
+*/
 import net.minecraft.client.gui.components.AbstractWidget
 //? if >=1.21.11 {
 import net.minecraft.client.renderer.RenderPipelines
@@ -103,12 +114,10 @@ fun lightenRgb(color: Int, factor: Float): Int {
     return (0xFF shl 24) or (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
 }
 
-/** Row spans (xStart, xEndExclusive) approximating an 8px filled circle, the [drawVerifiedBadge] backdrop. */
 private val VERIFIED_BADGE_ROWS = arrayOf(
     2 to 6, 1 to 7, 0 to 8, 0 to 8, 0 to 8, 0 to 8, 1 to 7, 2 to 6,
 )
 
-/** Pixel coordinates (within the 8px badge grid) tracing [drawVerifiedBadge]'s checkmark. */
 private val VERIFIED_BADGE_CHECK_PIXELS = arrayOf(
     1 to 4, 2 to 5, 3 to 6, 4 to 5, 4 to 4, 5 to 3, 5 to 2, 6 to 1,
 )
@@ -129,10 +138,10 @@ fun GuiGraphicsCompat.drawVerifiedBadge(x: Int, y: Int, size: Int, badgeColor: I
 }
 
 /** Nine-slice panel background sprite; see textures/gui/sprites/widgets/panel.png. */
-val PANEL_SPRITE: Identifier = Identifier.fromNamespaceAndPath(Initializer.MOD_ID, "widgets/panel")
+val PANEL_SPRITE: Identifier = identifier(Initializer.MOD_ID, "widgets/panel")
 
 /** Nine-slice dropdown background sprite; see textures/gui/sprites/widgets/dropdown.png. */
-val DROPDOWN_SPRITE: Identifier = Identifier.fromNamespaceAndPath(Initializer.MOD_ID, "widgets/dropdown")
+val DROPDOWN_SPRITE: Identifier = identifier(Initializer.MOD_ID, "widgets/dropdown")
 
 /**
  * Draws a nine-slice textured panel background filling [r], additionally faded by [alpha] (1 = the
@@ -159,5 +168,13 @@ fun GuiGraphicsCompat.drawPanel(font: Font, r: UiRect, title: String) {
 fun AbstractWidget.renderChild(g: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, partialTick: Float) =
     extractRenderState(g, mouseX, mouseY, partialTick)
 //?} else
-/*fun AbstractWidget.renderChild(g: GuiGraphics, mouseX: Int, mouseY: Int, partialTick: Float) =
-    render(g, mouseX, mouseY, partialTick)*/
+/*
+//? if >=1.20 {
+fun AbstractWidget.renderChild(g: GuiGraphics, mouseX: Int, mouseY: Int, partialTick: Float) =
+    render(g, mouseX, mouseY, partialTick)
+//?}
+//? if <1.20 {
+fun AbstractWidget.renderChild(g: GuiGraphics, mouseX: Int, mouseY: Int, partialTick: Float) =
+    render(g.pose(), mouseX, mouseY, partialTick)
+//?}
+*/

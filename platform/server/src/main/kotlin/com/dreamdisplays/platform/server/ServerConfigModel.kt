@@ -39,6 +39,9 @@ data class SettingsSection(
     val particlesEnabled get() = display.particles
     val particleRenderDelay = 2
 
+    val particleColorRgb: Int
+        get() = display.particles_color.trim().removePrefix("#").takeIf { it.length == 6 }?.toIntOrNull(16) ?: 0x00FFFF
+
     // Mod detection
     val modDetectionEnabled get() = display.mod_detection_enabled
 
@@ -106,8 +109,8 @@ data class SettingsSection(
      */
     data class CustomMediaConfig(
         val enabled: Boolean = true,
-        val allowed_hosts: List<String> = emptyList(),
-        val blocked_hosts: List<String> = emptyList(),
+        val allowed_hosts: List<String> = [],
+        val blocked_hosts: List<String> = [],
     )
 
     /** Fullscreen broadcast section. */
@@ -324,25 +327,20 @@ private fun TomlTable?.intOr(key: String, default: Int): Int {
     return default
 }
 
-/**
- * Reads [key] as a TOML array of strings, dropping blanks and non-string entries. Returns an empty
- * list when the key is absent or is not an array, so a malformed rule never turns into a
- * silently-empty allowlist that would block every custom link.
- */
 private fun stringList(t: TomlTable?, key: String): List<String> =
     t?.getArrayOrEmpty(key)
         ?.toList()
         ?.filterIsInstance<String>()
         ?.map { it.trim() }
         ?.filter { it.isNotEmpty() }
-        ?: emptyList()
+        ?: []
 
 /** Language files bundled with every server platform's JAR. */
-internal val LANGUAGE_FILES = listOf(
+internal val LANGUAGE_FILES = [
     "en.json", "es.json", "fr.json", "it.json", "pl.json",
     "ru.json", "uk.json", "de.json", "cs.json", "be.json", "he.json",
     "zh.json",
-)
+]
 
 /** Maps a Minecraft locale string (e.g. `ru_ru`, `ru-ru`) to the plugin's short language code (e.g. `ru`). */
 internal fun mapLocaleToLang(locale: String): String {

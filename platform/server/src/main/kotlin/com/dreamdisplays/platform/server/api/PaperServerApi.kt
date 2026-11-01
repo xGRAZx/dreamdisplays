@@ -79,7 +79,7 @@ internal class PaperServerDisplay(
 /** Lazy view over `Paper` displays. */
 @PaperOnly
 internal class PaperServerDisplays(
-    filters: List<(PaperDisplayData) -> Boolean> = emptyList(),
+    filters: List<(PaperDisplayData) -> Boolean> = [],
 ) : ServerDisplaysBase<PaperDisplayData>(filters) {
     override fun all(): List<PaperDisplayData> = DisplayManager.getDisplays().filterIsInstance<PaperDisplayData>()
     override fun wrap(data: PaperDisplayData): ServerDisplay = PaperServerApi.wrap(data)
@@ -112,12 +112,12 @@ internal class PaperServerDisplays(
             region.getMinLocation(bukkitWorld), region.getMaxLocation(bukkitWorld),
             screenWidth, screenHeight, face, DisplayRotation.NONE,
         )
+        if (PaperServerApi.askCreate(data, null) != null) return null
         DisplayManager.register(data)
         return wrap(data)
     }
 }
 
-/** Maps the public facing to `Bukkit`'s. */
 private fun DisplayFacing.toBlockFace(): BlockFace = when (this) {
     DisplayFacing.NORTH -> BlockFace.NORTH
     DisplayFacing.EAST -> BlockFace.EAST

@@ -29,10 +29,16 @@ internal object PlacedDisplays {
         //? if >=1.21.11 {
         return mc.deltaTracker.getGameTimeDeltaPartialTick(false)
         //?} else
-        /*return mc.timer.getGameTimeDeltaPartialTick(false)*/
+        /*
+        //? if >=1.21.1 {
+        return mc.timer.getGameTimeDeltaPartialTick(false)
+        //?}
+        //? if <1.21.1 {
+        return mc.frameTime
+        //?}
+        */
     }
 
-    /** The display's blocks in local space: the anchor of [transform] is their minimum corner. */
     private fun localOrigin(transform: PlacementTransform) = BlockPos(transform.anchorX, transform.anchorY, transform.anchorZ)
 
     /** The block that holds the display's blocks' minimum corner: the placement's anchor, or [stored] when unplaced. */
