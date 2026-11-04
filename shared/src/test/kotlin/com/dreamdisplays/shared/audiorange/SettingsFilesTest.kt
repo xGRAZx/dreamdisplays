@@ -74,7 +74,10 @@ class SettingsFilesTest {
     fun modGateUpdateReminder() {
         val d = ModGateFile.parse(ModGateFile.DEFAULT_LINES)
         assertNull(d.minBuild)
-        assertEquals(AudioRangeProtocol.BUILD, d.requiredBuild)
+        assertEquals(0, d.requiredBuild)
+        assertTrue(d.updateCheck)
+        assertEquals(AudioRangeProtocol.RELEASES_URL, d.downloadUrl)
+        assertFalse(ModGateFile.parse(listOf("true", "update_check=false")).updateCheck)
 
         assertEquals(0, ModGateFile.parse(listOf("true", "min_build=0")).requiredBuild)
         assertEquals(25, ModGateFile.parse(listOf("true", "min_build=25")).requiredBuild)

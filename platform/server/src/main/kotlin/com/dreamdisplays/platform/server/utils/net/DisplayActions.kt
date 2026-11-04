@@ -288,6 +288,8 @@ object DisplayActions {
 
     /** Tells privileged [player] about a newer plugin release; skipped for `-SNAPSHOT` builds. */
     private fun checkPluginUpdate(player: Player) {
+        // Upstream plugin releases lack the AltDisplays features; ModGate tells players about AltDisplays releases.
+        if (AUDIORANGE_REPLACES_MOD_UPDATE_CHECK) return
         val latestPluginVersion = VersionState.pluginLatestVersion ?: return
 
         if (PlayerManager.hasBeenNotifiedAboutPluginUpdate(player)) return

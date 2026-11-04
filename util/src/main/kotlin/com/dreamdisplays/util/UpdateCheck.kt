@@ -1,15 +1,16 @@
 package com.dreamdisplays.util
 
+import com.dreamdisplays.shared.audiorange.AudioRangeProtocol
 import com.dreamdisplays.util.json.DreamJson
 import com.dreamdisplays.util.net.DreamHttpClient
 import kotlinx.coroutines.launch
 import org.semver4j.Semver
 import org.slf4j.LoggerFactory
 
-/** Checks mod updates against the latest stable GitHub release. **/
+/** Checks for a newer AltDisplays release on GitHub (tags `alt-<version>`). **/
 object UpdateCheck {
     private val logger = LoggerFactory.getLogger(javaClass)
-    private const val API = "https://api.github.com/repos/arnodoelinger/dreamdisplays/releases/latest"
+    private const val API = "https://api.github.com/repos/xGRAZx/dreamdisplays/releases/latest"
 
     @Volatile
     private var checked = false
@@ -21,7 +22,7 @@ object UpdateCheck {
         if (isPreRelease(GeneralUtil.getModVersion())) return false
         if (!checked) startCheck()
         val latest = latestVersion ?: return false
-        return compareVersions(latest, GeneralUtil.getModVersion()) > 0
+        return AudioRangeProtocol.isOlder(AudioRangeProtocol.ALT_VERSION, latest)
     }
 
     fun isPreRelease(version: String): Boolean =
@@ -41,7 +42,7 @@ object UpdateCheck {
                 DreamHttpClient.RequestOptions(
                     headers = DreamHttpClient.headersOf(
                         "User-Agent" to
-                                "DreamDisplays/${GeneralUtil.getModVersion()} (+github.com/arnodoelinger/dreamdisplays)",
+                                "AltDisplays/${AudioRangeProtocol.ALT_VERSION} (+github.com/xGRAZx/dreamdisplays)",
                         "Accept" to "application/vnd.github+json",
                     ),
                     connectTimeoutMs = 5_000,
@@ -62,7 +63,8 @@ object UpdateCheck {
 
                 else -> null
             } ?: return
-            latestVersion = rawTag.trimStart('v', 'V')
+            // Only AltDisplays releases count; anything else keeps the arrow hidden.
+            latestVersion = rawTag.takeIf { it.startsWith("alt-") }?.removePrefix("alt-")
         }.onFailure { e ->
             logger.warn("Update check failed: ${e.message}")
         }

@@ -20,10 +20,11 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * `mod_required.txt`: hides every screen from players whose client did not identify as the audiorange
+ * `mod_required.txt`: hides every screen from players whose client did not identify as the AltDisplays
  * mod, so nobody hears a screen without the server's sound limits. Players are told how to get the mod,
- * and players with an older build of it are reminded to update. Each message is sent once per join:
- * the client repeats its protocol hello on every world change, which must not repeat the messages.
+ * and players whose mod is older than the newest AltDisplays release on GitHub are told to update.
+ * Each message is sent once per join: the client repeats its hellos on every world change and server
+ * switch, which must not repeat the messages.
  */
 @PaperOnly
 @NullMarked
@@ -32,6 +33,10 @@ internal class ModGate(dataFolder: File) {
     private val verified: MutableSet<UUID> = ConcurrentHashMap.newKeySet()
     private val noticeSent: MutableSet<UUID> = ConcurrentHashMap.newKeySet()
     private val reminderSent: MutableSet<UUID> = ConcurrentHashMap.newKeySet()
+
+    init {
+        ReleaseCheck.refresh()
+    }
 
     val settings: ModGateSettings get() = file.get()
 
@@ -57,16 +62,32 @@ internal class ModGate(dataFolder: File) {
         }
     }
 
-    /** The client identified as the audiorange mod: let it in, send it the screens it was denied, and remind it to update if old. */
+    /** The client identified as the AltDisplays mod: let it in, send it the screens it was denied, and tell it about updates. */
     fun onModHello(player: Player, text: String) {
         val s = settings
         // Only a player the gate held back is missing screens; the rest got them all at join.
         val heldBack = s.enabled && !allowed(player)
         if (verified.add(player.uniqueId) && heldBack) DisplayActions.sendAllDisplays(player)
+        if (player.uniqueId in reminderSent) return
         val build = AudioRangeProtocol.helloBuild(text)
-        if (build < s.requiredBuild && reminderSent.add(player.uniqueId)) {
-            fun fill(t: String) = t.replace("%have%", build.toString()).replace("%need%", s.requiredBuild.toString())
-            notify(player, fill(s.updateMessage), fill(s.updateMessageEn), s)
+        if (build < s.requiredBuild) {
+            if (reminderSent.add(player.uniqueId)) {
+                fun fill(t: String) = t.replace("%have%", build.toString()).replace("%need%", s.requiredBuild.toString())
+                notify(player, fill(s.updateMessage), fill(s.updateMessageEn), s)
+            }
+            return
+        }
+        if (!s.updateCheck) return
+        val have = AudioRangeProtocol.helloVersion(text) ?: return
+        ReleaseCheck.refresh()
+        // Wait a little: right after a restart the GitHub check may still be on its way, and the
+        // message is easier to see once the join messages have passed.
+        Scheduler.runPlayerLater(player, NOTICE_DELAY_TICKS) {
+            val need = ReleaseCheck.latest() ?: return@runPlayerLater
+            if (AudioRangeProtocol.isOlder(have, need) && reminderSent.add(player.uniqueId)) {
+                fun fill(t: String) = t.replace("%have%", have).replace("%need%", need)
+                notify(player, fill(s.updateMessage), fill(s.updateMessageEn), s)
+            }
         }
     }
 
@@ -78,10 +99,10 @@ internal class ModGate(dataFolder: File) {
 
     private fun notify(player: Player, text: String, textEn: String, s: ModGateSettings) {
         val legacy = LegacyComponentSerializer.legacySection()
-        var message = Component.empty()
-            .append(legacy.deserialize(text).colorIfAbsent(NamedTextColor.RED))
-            .append(Component.newline())
-            .append(legacy.deserialize(textEn).colorIfAbsent(NamedTextColor.GRAY))
+        var message = Component.empty().append(legacy.deserialize(text).colorIfAbsent(NamedTextColor.RED))
+        if (textEn.isNotBlank()) {
+            message = message.append(Component.newline()).append(legacy.deserialize(textEn).colorIfAbsent(NamedTextColor.GRAY))
+        }
         if (s.downloadUrl.isNotEmpty()) {
             message = message.append(Component.newline()).append(
                 Component.text("[ ${s.buttonLabel} ]", NamedTextColor.AQUA)

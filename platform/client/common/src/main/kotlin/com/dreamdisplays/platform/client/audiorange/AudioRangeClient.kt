@@ -43,12 +43,13 @@ object AudioRangeClient {
     /** Called for every `ServerHello` (join, and again whenever an admin saves a change). */
     fun onServerHello(hello: ServerHello) {
         val parsed = AudioRangeFeatures.fromWire(hello.allowedFeatures)
-        val first = !helloReceived
         features = parsed
         legacyAdmin = hello.isAdmin
         helloReceived = true
-        // Identify as the audiorange mod once per connection, which also opens the server's mod gate.
-        if (first && parsed.rangeSupported) AudioRangeNet.hello()
+        // Identify as the AltDisplays mod, which opens the server's mod gate. Answer every ServerHello, not
+        // only the first: behind a proxy (Velocity) a server switch keeps this connection, so the new
+        // server's hello would otherwise get no answer and that server would hide its screens.
+        if (parsed.rangeSupported) AudioRangeNet.hello()
         ViewSync.onFeatures(parsed)
     }
 

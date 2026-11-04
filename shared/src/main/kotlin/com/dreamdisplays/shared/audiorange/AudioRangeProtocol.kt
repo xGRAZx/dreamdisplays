@@ -31,13 +31,24 @@ object AudioRangeProtocol {
      * release: the release workflow checks that the tag (`ar<BUILD>`) matches, and the plugin reminds
      * players whose mod reports a lower number.
      */
-    const val BUILD = 23
+    const val BUILD = 24
 
     /**
-     * The hello text: `hello|<extension revision>|<build>`. The audiorange 1-21 mods send only the
-     * revision, so a missing build means one of those.
+     * The AltDisplays release this mod and plugin belong to; must equal the `ALTDISPLAYS_VERSION` file
+     * when releasing (the release workflow checks it). The plugin compares the version a player's mod
+     * reports with the newest GitHub release to tell them about updates.
      */
-    const val HELLO = "hello|16|$BUILD"
+    const val ALT_VERSION = "1.2"
+
+    /** The GitHub page of the newest AltDisplays release, where players download the mod. */
+    const val RELEASES_URL = "https://github.com/xGRAZx/dreamdisplays/releases/latest"
+
+    /**
+     * The hello text: `hello|<extension revision>|<build>|<AltDisplays version>`. The audiorange 1-21
+     * mods send only the revision, so a missing build means one of those; AltDisplays 1.0 and 1.1 send
+     * no version (see [versionForBuild]).
+     */
+    const val HELLO = "hello|16|$BUILD|$ALT_VERSION"
 
     /** Build number of the audiorange 1-21 mods, which send no build in their hello. */
     const val LEGACY_BUILD = 21
@@ -45,6 +56,36 @@ object AudioRangeProtocol {
     /** The build a client reported in its hello [text], or [LEGACY_BUILD] when it sent none. */
     fun helloBuild(text: String): Int =
         text.split('|').getOrNull(2)?.trim()?.toIntOrNull()?.takeIf { it > 0 } ?: LEGACY_BUILD
+
+    /** The AltDisplays version a client reported in its hello [text], or null for mods too old to say. */
+    fun helloVersion(text: String): String? =
+        text.split('|').getOrNull(3)?.trim()?.takeIf { parseVersion(it) != null }
+            ?: versionForBuild(helloBuild(text))
+
+    /** AltDisplays releases made before the hello carried the version. */
+    fun versionForBuild(build: Int): String? = when (build) {
+        22 -> "1.0"
+        23 -> "1.1"
+        else -> null
+    }
+
+    /** `1.2` -> [1, 2]; also takes release tags like `alt-1.2`. Null when there is no number. */
+    fun parseVersion(text: String): List<Int>? {
+        val digits = text.trim().removePrefix("alt-").removePrefix("v")
+        val parts = digits.split('.').map { it.toIntOrNull() ?: return null }
+        return parts.takeIf { it.isNotEmpty() }
+    }
+
+    /** True when version [a] is older than [b] (`1.9` < `1.10`); false when either cannot be read. */
+    fun isOlder(a: String, b: String): Boolean {
+        val x = parseVersion(a) ?: return false
+        val y = parseVersion(b) ?: return false
+        for (i in 0 until maxOf(x.size, y.size)) {
+            val d = x.getOrElse(i) { 0 } - y.getOrElse(i) { 0 }
+            if (d != 0) return d < 0
+        }
+        return false
+    }
 
     /** Wraps [text] in an envelope of [type]. */
     fun frame(type: Int, text: String): ByteArray {

@@ -5,6 +5,7 @@ import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -108,5 +109,25 @@ class AudioRangeProtocolTest {
         assertEquals(AudioRangeProtocol.LEGACY_BUILD, AudioRangeProtocol.helloBuild("hello"))
         assertEquals(AudioRangeProtocol.LEGACY_BUILD, AudioRangeProtocol.helloBuild("hello|16|x"))
         assertEquals(30, AudioRangeProtocol.helloBuild("hello|16|30|future"))
+    }
+
+    @Test
+    fun helloCarriesTheVersion() {
+        assertEquals(AudioRangeProtocol.ALT_VERSION, AudioRangeProtocol.helloVersion(AudioRangeProtocol.HELLO))
+        // AltDisplays 1.0 and 1.1 sent only their build.
+        assertEquals("1.0", AudioRangeProtocol.helloVersion("hello|16|22"))
+        assertEquals("1.1", AudioRangeProtocol.helloVersion("hello|16|23"))
+        assertNull(AudioRangeProtocol.helloVersion("hello|16"))
+        assertEquals("2.0", AudioRangeProtocol.helloVersion("hello|16|40|2.0"))
+    }
+
+    @Test
+    fun versionsCompareByNumber() {
+        assertTrue(AudioRangeProtocol.isOlder("1.1", "1.2"))
+        assertTrue(AudioRangeProtocol.isOlder("1.9", "1.10"))
+        assertTrue(AudioRangeProtocol.isOlder("1.1", "alt-1.1.1"))
+        assertFalse(AudioRangeProtocol.isOlder("1.2", "alt-1.2"))
+        assertFalse(AudioRangeProtocol.isOlder("1.3", "1.2"))
+        assertFalse(AudioRangeProtocol.isOlder("1.1", "nightly"))
     }
 }

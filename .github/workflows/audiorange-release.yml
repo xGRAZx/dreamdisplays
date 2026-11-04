@@ -69,6 +69,13 @@ jobs:
               echo "::error::Version '$release' is not like 1.0 (tag alt-1.0)."
               exit 1
             fi
+            # The mod reports this version to the server, which compares it with the newest release.
+            alt=$(sed -n 's/^ *const val ALT_VERSION = "\([^"]*\)"$/\1/p' \
+              shared/src/main/kotlin/com/dreamdisplays/shared/audiorange/AudioRangeProtocol.kt)
+            if [ "$alt" != "$release" ]; then
+              echo "::error::AudioRangeProtocol.ALT_VERSION is '$alt' but this release is '$release'."
+              exit 1
+            fi
           fi
           echo "build=$build" >> "$GITHUB_OUTPUT"
           echo "release=$release" >> "$GITHUB_OUTPUT"
