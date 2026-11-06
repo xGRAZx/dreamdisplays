@@ -114,7 +114,9 @@ jobs:
 
       - name: Name the files
         run: |
-          mkdir release
+          # Players get only the mods (public release); the server plugin goes to a draft release
+          # that only the repository owner can see.
+          mkdir release private
           cp "jars/dreamdisplays-fabric-$MC-$VERSION.jar" "release/AltDisplays-$RELEASE-$MC-Fabric-by-GRAZ.jar"
           cp "jars/dreamdisplays-neoforge-$MC-$VERSION.jar" "release/AltDisplays-$RELEASE-$MC-NeoForge-by-GRAZ.jar"
           paper=$(ls jars/dreamdisplays-paper-*.jar | grep -Ev -- '-(sources|javadoc|dev-shadow)\.jar$' | head -1)
@@ -122,21 +124,24 @@ jobs:
             echo "::error::No Paper plugin jar in build-jars-$MC."
             exit 1
           fi
-          cp "$paper" "release/AltDisplays-$RELEASE-$MC-Paper-by-GRAZ.jar"
-          ls -l release
+          cp "$paper" "private/AltDisplays-$RELEASE-$MC-Paper-by-GRAZ.jar"
+          ls -l release private
 
       - name: Write the release notes
         run: |
           cat > notes.md <<EOF
-          **AltDisplays $RELEASE** for Minecraft $MC, by GRAZ (Dream Displays $VERSION with audiorange build $BUILD).
+          **AltDisplays $RELEASE** для Minecraft $MC, автор GRAZ.
 
-          - \`AltDisplays-$RELEASE-$MC-Fabric-by-GRAZ.jar\`: the mod for Fabric, for everyone (players and admins). Put it in \`mods\`.
-          - \`AltDisplays-$RELEASE-$MC-NeoForge-by-GRAZ.jar\`: the same mod for NeoForge. Put it in \`mods\`.
-          - \`AltDisplays-$RELEASE-$MC-Paper-by-GRAZ.jar\`: the server plugin. Put it in \`plugins\`.
+          Мод для гравців: дисплеї з відео на сервері. Завантажте **один** файл і покладіть його в папку \`mods\`:
 
-          Use the mod and the plugin from the same release. Admin features need the permission \`dreamdisplays.audio\`.
+          - \`AltDisplays-$RELEASE-$MC-Fabric-by-GRAZ.jar\`: якщо гра на Fabric.
+          - \`AltDisplays-$RELEASE-$MC-NeoForge-by-GRAZ.jar\`: якщо гра на NeoForge.
 
-          Tested before publishing: Fabric, NeoForge and Paper servers start with these files, and the Fabric and NeoForge game clients join a world.
+          Перед встановленням видаліть старий файл AltDisplays (або Dream Displays) з папки \`mods\`.
+          EOF
+          cat > private-notes.md <<EOF
+          Server plugin for **AltDisplays $RELEASE** (draft: only the repository owner sees it). Put it in \`plugins\`
+          and use it with the AltDisplays $RELEASE mods. Audiorange build $BUILD, Dream Displays $VERSION.
           EOF
 
       - name: Publish the release
@@ -148,5 +153,11 @@ jobs:
             --title "AltDisplays $RELEASE (Minecraft $MC)" \
             --notes-file notes.md \
             --latest
+          gh release create "alt-$RELEASE-plugin" private/*.jar \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "AltDisplays $RELEASE: server plugin (private)" \
+            --notes-file private-notes.md \
+            --draft
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -367,6 +367,37 @@ private fun parseLanguageMessages(text: String): Map<String, Any> {
     }.toMap()
 }
 
+/** Download page of the AltDisplays mod, used by every message that sends players to get the mod. */
+private const val ALT_DOWNLOAD_URL = "https://github.com/xGRAZx/dreamdisplays/releases/latest"
+
+/**
+ * AltDisplays texts that replace the upstream ones in every language, also over `lang/*.json` files a
+ * server extracted earlier: they point players at the AltDisplays mod on GitHub instead of upstream
+ * Dream Displays on Modrinth.
+ */
+internal val altDisplaysMessages: Map<String, Any> by lazy {
+    fun link(before: String, linkText: String, after: String) = """
+        {"text": "", "extra": [
+          {"text": "D | ", "color": "#9D9D97"},
+          {"text": "$before", "color": "#FFFFFF"},
+          {"text": "$linkText", "color": "#5555FF", "underlined": true,
+           "clickEvent": {"action": "open_url", "value": "$ALT_DOWNLOAD_URL"},
+           "hoverEvent": {"action": "show_text", "value": "Відкрити сторінку завантаження AltDisplays"}},
+          {"text": "$after", "color": "#FFFFFF"}
+        ]}
+    """
+    parseLanguageMessages(
+        """
+        {
+          "modRequired": ${link("На цьому сервері працюють дисплеї: ", "скачайте мод AltDisplays", ", щоб їх бачити.")},
+          "displayBlockBreak": ${link("Це блок дисплея. ", "Скачайте мод AltDisplays", ", щоб із ним взаємодіяти.")},
+          "newVersion": ${link("Вийшла нова версія мода AltDisplays (%s). ", "Завантажити", "")},
+          "outdatedClient": "&7D |&f Ваш мод AltDisplays застарів для цього сервера. Оновіть його, щоб бачити дисплеї."
+        }
+        """,
+    )
+}
+
 /** Extracts bundled per-language JSONs into [dataDir] / lang and loads them as message lookups. */
 internal class LanguageStore(
     private val dataDir: File,
@@ -419,12 +450,12 @@ internal class LanguageStore(
             val bundled = bundledMessages(fileName)
             if (langFile.exists()) {
                 runCatching {
-                    languages[langCode] = bundled + loadLanguageMessages(langFile)
+                    languages[langCode] = bundled + loadLanguageMessages(langFile) + altDisplaysMessages
                 }.onFailure {
                     logger.error("Error loading language file: $fileName.", it)
                 }
             } else if (bundled.isNotEmpty()) {
-                languages[langCode] = bundled
+                languages[langCode] = bundled + altDisplaysMessages
             }
         }
         messages.clear()

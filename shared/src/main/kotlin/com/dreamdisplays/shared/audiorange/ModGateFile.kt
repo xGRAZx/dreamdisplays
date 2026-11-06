@@ -20,9 +20,9 @@ data class ModGateSettings(
 
     companion object {
         const val DEFAULT_MESSAGE =
-            "§cНа цьому сервері екрани працюють лише з модом AltDisplays. Встановіть його, щоб бачити екрани."
+            "§fНа цьому сервері працюють дисплеї. Щоб їх бачити, скачайте мод AltDisplays:"
         const val DEFAULT_MESSAGE_EN = ""
-        const val DEFAULT_BUTTON = "Завантажити"
+        const val DEFAULT_BUTTON = "Скачати мод AltDisplays"
         const val DEFAULT_UPDATE_MESSAGE = "§eВийшла нова версія мода AltDisplays %need% (у вас %have%). Оновіть його, будь ласка."
         const val DEFAULT_UPDATE_MESSAGE_EN = ""
     }
@@ -40,7 +40,7 @@ object ModGateFile {
         "# message_en=",
         "# Download button under the messages (default: the newest AltDisplays release on GitHub).",
         "# download=${AudioRangeProtocol.RELEASES_URL}",
-        "# button=Завантажити",
+        "# button=Скачати мод AltDisplays",
         "# Players whose mod is older than the newest AltDisplays release on GitHub get update_message,",
         "# once per join. %have% and %need% are replaced with their version and the newest one.",
         "# update_check=false turns this off.",
