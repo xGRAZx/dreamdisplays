@@ -1,5 +1,5 @@
 {
-  "dreamdisplays.ui.title": "Dream Displays",
+  "dreamdisplays.ui.title": "AltDisplays",
   "dreamdisplays.mode.local": "Local",
   "dreamdisplays.mode.synced": "Synced",
   "dreamdisplays.mode.watch_party": "Watch Party",
@@ -102,8 +102,8 @@
   "dreamdisplays.access.everyone": "Everyone",
   "dreamdisplays.access.region": "Region members",
   "dreamdisplays.access.locked": "Locked",
-  "dreamdisplays.message.outdated_server": "This server's Dream Displays is too old, so displays can't be used here. Ask the server admins to update it",
-  "dreamdisplays.config.title": "Dream Displays settings",
+  "dreamdisplays.message.outdated_server": "This server's AltDisplays is too old, so displays can't be used here. Ask the server admins to update it",
+  "dreamdisplays.config.title": "AltDisplays settings",
   "dreamdisplays.config.category.general": "General",
   "dreamdisplays.config.value.auto": "Auto",
   "dreamdisplays.config.value.chunks": "%s chunks",
@@ -144,7 +144,7 @@
   "dreamdisplays.audio.zone": "Show zone in the world",
   "dreamdisplays.audio.tip.zone": "Draws the sound zone with particles around the screen (orange: where sound ends, green: where it starts to fade). Only for this screen, other screens are toggled separately. Only you see it. Particles are hidden behind walls.",
   "dreamdisplays.audio.locked": "Set by the server admin for everyone.",
-  "dreamdisplays.report.title": "Dream Displays report:",
+  "dreamdisplays.report.title": "AltDisplays report:",
   "dreamdisplays.report.copied": "The full report is copied. Paste it (Ctrl+V) to the server admin. It is also saved in logs/dreamdisplays-report.txt.",
   "dreamdisplays.report.saved": "The full report is saved in logs/dreamdisplays-report.txt. Send this file to the server admin.",
   "dreamdisplays.report.failed": "The report could not be copied or saved; it is in the game log (logs/latest.log)."

@@ -7,7 +7,7 @@ issueTrackerURL = "https://github.com/xGRAZx/dreamdisplays/issues"
 
 modId = "dreamdisplays"
 version = "${version}"
-displayName = "Dream Displays"
+displayName = "AltDisplays"
 displayURL = "https://github.com/xGRAZx/dreamdisplays"
 logoFile = "assets/dreamdisplays/icon.png"
 authors = "GRAZ"

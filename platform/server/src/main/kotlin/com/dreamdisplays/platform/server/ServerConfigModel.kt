@@ -398,6 +398,17 @@ internal val altDisplaysMessages: Map<String, Any> by lazy {
     )
 }
 
+/** Old texts in a server's extracted lang files: say AltDisplays and link to its GitHub page. */
+private fun rebrand(value: Any): Any = when (value) {
+    is String -> value
+        .replace("https://modrinth.com/plugin/dreamdisplays/versions", ALT_DOWNLOAD_URL)
+        .replace("https://modrinth.com/plugin/dreamdisplays", ALT_DOWNLOAD_URL)
+        .replace("Dream Displays", "AltDisplays")
+    is Map<*, *> -> value.mapValues { (_, v) -> v?.let(::rebrand) }
+    is List<*> -> value.map { v -> v?.let(::rebrand) }
+    else -> value
+}
+
 /** Extracts bundled per-language JSONs into [dataDir] / lang and loads them as message lookups. */
 internal class LanguageStore(
     private val dataDir: File,
@@ -450,7 +461,7 @@ internal class LanguageStore(
             val bundled = bundledMessages(fileName)
             if (langFile.exists()) {
                 runCatching {
-                    languages[langCode] = bundled + loadLanguageMessages(langFile) + altDisplaysMessages
+                    languages[langCode] = bundled + loadLanguageMessages(langFile).mapValues { rebrand(it.value) } + altDisplaysMessages
                 }.onFailure {
                     logger.error("Error loading language file: $fileName.", it)
                 }

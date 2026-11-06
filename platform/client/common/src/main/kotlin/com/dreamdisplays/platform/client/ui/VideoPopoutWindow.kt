@@ -249,7 +249,7 @@ class VideoPopoutWindow(
             GLFW.glfwWindowHint(GLFW.GLFW_OPENGL_PROFILE, GLFW.GLFW_OPENGL_CORE_PROFILE)
             GLFW.glfwWindowHint(GLFW.GLFW_OPENGL_FORWARD_COMPAT, GL11.GL_TRUE)
 
-            val handle = GLFW.glfwCreateWindow(w, h, "Dream Displays", 0L, 0L)
+            val handle = GLFW.glfwCreateWindow(w, h, "AltDisplays", 0L, 0L)
             if (handle == 0L) {
                 logger.warn("glfwCreateWindow failed"); return
             }
@@ -461,7 +461,7 @@ class VideoPopoutWindow(
             val w = videoW.coerceIn(480, 1280)
             val h = videoH.coerceIn(270, 720)
             val flags = SDLVideo.SDL_WINDOW_RESIZABLE or SDLVideo.SDL_WINDOW_HIGH_PIXEL_DENSITY
-            val window = SDLVideo.SDL_CreateWindow("Dream Displays", w, h, flags)
+            val window = SDLVideo.SDL_CreateWindow("AltDisplays", w, h, flags)
             if (window == 0L) {
                 logger.warn("SDL_CreateWindow failed: {}", SDLError.SDL_GetError())
                 return
@@ -618,7 +618,7 @@ class VideoPopoutWindow(
 
                 val p = VideoPanel().also { panel = it }
 
-                JFrame("Dream Displays").apply {
+                JFrame("AltDisplays").apply {
                     frame = this
                     defaultCloseOperation = JFrame.DO_NOTHING_ON_CLOSE
                     contentPane = p

@@ -1,9 +1,9 @@
-name: DreamDisplays
-version: '${version}'
+name: AltDisplays
+version: '${altVersion}'
 main: com.dreamdisplays.platform.server.PaperServer
 bootstrapper: com.dreamdisplays.platform.server.PaperBootstrap
 api-version: '${paperMinecraftApi}'
-description: 'AltDisplays by GRAZ: server plugin for the AltDisplays mod. Based on Dream Displays by arnodoelinger, INotSleep, Kolyakot33 and Toffikk.'
+description: 'AltDisplays by GRAZ (Dream Displays ${version} inside): server plugin for the AltDisplays mod. Based on Dream Displays by arnodoelinger, INotSleep, Kolyakot33 and Toffikk.'
 website: 'https://github.com/xGRAZx/dreamdisplays'
 authors:
   - GRAZ

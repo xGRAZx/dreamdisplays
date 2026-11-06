@@ -244,8 +244,13 @@ sourceSets.main {
 tasks.processResources {
     from(project(":platform:resources").file("src/main/resources/assets/dreamdisplays/lang/server/config.toml"))
     val projectVersion = version.toString()
+    // The AltDisplays release number, from the one place the code keeps it.
+    val altVersion = Regex("""const val ALT_VERSION = "([^"]+)"""")
+        .find(rootProject.file("shared/src/main/kotlin/com/dreamdisplays/shared/audiorange/AudioRangeProtocol.kt").readText())
+        ?.groupValues?.get(1) ?: error("AudioRangeProtocol.ALT_VERSION not found")
     val props = mapOf(
         "version" to projectVersion,
+        "altVersion" to altVersion,
         "paperMinecraftApi" to scVersion("paper.minecraft.api"),
     )
     inputs.properties(props)

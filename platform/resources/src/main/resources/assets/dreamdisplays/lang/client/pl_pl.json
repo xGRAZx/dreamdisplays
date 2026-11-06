@@ -1,5 +1,5 @@
 {
-  "dreamdisplays.ui.title": "Dream Displays",
+  "dreamdisplays.ui.title": "AltDisplays",
   "dreamdisplays.mode.local": "Lokalny",
   "dreamdisplays.mode.synced": "Zsynchronizowany",
   "dreamdisplays.mode.watch_party": "Wspólne oglądanie",
@@ -102,8 +102,8 @@
   "dreamdisplays.access.everyone": "Wszyscy",
   "dreamdisplays.access.region": "Członkowie regionu",
   "dreamdisplays.access.locked": "Zablokowany",
-  "dreamdisplays.message.outdated_server": "Wersja Dream Displays na tym serwerze jest zbyt stara, więc nie można tu używać ekranów. Poproś administrację serwera o aktualizację",
-  "dreamdisplays.config.title": "Ustawienia Dream Displays",
+  "dreamdisplays.message.outdated_server": "Wersja AltDisplays na tym serwerze jest zbyt stara, więc nie można tu używać ekranów. Poproś administrację serwera o aktualizację",
+  "dreamdisplays.config.title": "Ustawienia AltDisplays",
   "dreamdisplays.config.category.general": "Ogólne",
   "dreamdisplays.config.value.auto": "Auto",
   "dreamdisplays.config.value.chunks": "%s chunków",

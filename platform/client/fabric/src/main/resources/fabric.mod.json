@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "dreamdisplays",
-  "name": "Dream Displays",
+  "name": "AltDisplays",
   "version": "${version}",
   "license": "LGPL-3.0",
   "description": "AltDisplays by GRAZ: in-game screens with server-set sound range. Based on Dream Displays by arnodoelinger, INotSleep, Kolyakot33 and Toffikk.",

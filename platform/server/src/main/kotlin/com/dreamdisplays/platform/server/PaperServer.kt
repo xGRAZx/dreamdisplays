@@ -35,12 +35,27 @@ class PaperServer : JavaPlugin() {
 
     override fun onLoad() {
         instance = this
+        moveOldDataFolder()
         Companion.config = Config(this)
         //? if >=1.20.5 {
         lifecycleManager.registerEventHandler(LifecycleEvents.COMMANDS) { event ->
             event.registrar().register(CommandRegistrar.buildDisplayCommand(), "Main Dream Displays command")
         }
         //?}
+    }
+
+    /**
+     * The plugin was called DreamDisplays before it became AltDisplays, so its settings and screens are in
+     * `plugins/DreamDisplays`. Move that folder to the new name once, before anything reads it.
+     */
+    private fun moveOldDataFolder() {
+        val old = java.io.File(dataFolder.parentFile, OLD_NAME)
+        if (dataFolder.exists() || !old.isDirectory) return
+        if (old.renameTo(dataFolder)) {
+            Companion.logger.info("Moved the old plugins/$OLD_NAME folder to plugins/${dataFolder.name}.")
+        } else {
+            Companion.logger.warn("Could not move plugins/$OLD_NAME to plugins/${dataFolder.name}; move it by hand while the server is off.")
+        }
     }
 
     override fun onEnable() {
@@ -117,6 +132,9 @@ class PaperServer : JavaPlugin() {
     companion object {
         /** Logger. */
         val logger = LoggerFactory.getLogger(javaClass)
+
+        /** The plugin's name before it was renamed to AltDisplays. */
+        private const val OLD_NAME = "DreamDisplays"
 
         /** Mod config (`Fabric` server included). */
         lateinit var config: Config

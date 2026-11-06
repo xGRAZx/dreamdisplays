@@ -1,5 +1,5 @@
 {
-  "dreamdisplays.ui.title": "Dream Displays",
+  "dreamdisplays.ui.title": "AltDisplays",
   "dreamdisplays.mode.local": "Лакальны",
   "dreamdisplays.mode.synced": "Сінхранізаваны",
   "dreamdisplays.mode.watch_party": "Сумесны прагляд",
@@ -102,8 +102,8 @@
   "dreamdisplays.access.everyone": "Усе",
   "dreamdisplays.access.region": "Удзельнікі рэгіёна",
   "dreamdisplays.access.locked": "Заблакаваны",
-  "dreamdisplays.message.outdated_server": "Версія Dream Displays на гэтым серверы занадта старая, таму дысплеі тут недаступныя. Папрасіце адміністрацыю сервера абнавіць яе",
-  "dreamdisplays.config.title": "Налады Dream Displays",
+  "dreamdisplays.message.outdated_server": "Версія AltDisplays на гэтым серверы занадта старая, таму дысплеі тут недаступныя. Папрасіце адміністрацыю сервера абнавіць яе",
+  "dreamdisplays.config.title": "Налады AltDisplays",
   "dreamdisplays.config.category.general": "Асноўныя",
   "dreamdisplays.config.value.auto": "Аўта",
   "dreamdisplays.config.value.chunks": "%s чанкаў",

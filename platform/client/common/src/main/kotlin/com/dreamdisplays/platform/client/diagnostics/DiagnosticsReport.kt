@@ -33,8 +33,8 @@ object DiagnosticsReport {
     /** Builds the report, copies and saves it, and tells the player in chat. Main thread. */
     fun run() {
         val mc = Minecraft.getInstance()
-        val text = runCatching { build(mc) }.getOrElse { "Dream Displays report failed: $it" }
-        logger.info("Dream Displays report:\n{}", text)
+        val text = runCatching { build(mc) }.getOrElse { "AltDisplays report failed: $it" }
+        logger.info("AltDisplays report:\n{}", text)
         val copied = runCatching { mc.keyboardHandler.setClipboard(text) }.isSuccess
         val file = runCatching {
             File(mc.gameDirectory, "logs/dreamdisplays-report.txt").also {
@@ -77,7 +77,7 @@ object DiagnosticsReport {
     internal fun build(mc: Minecraft): String = buildString {
         val runtime = Runtime.getRuntime()
         val mib = 1024 * 1024
-        line("Dream Displays report, ${LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)}")
+        line("AltDisplays ${AudioRangeProtocol.ALT_VERSION} report, ${LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)}")
         line("mod ${GeneralUtil.getModVersion()}, audiorange build ${AudioRangeProtocol.BUILD}")
         line(
             "java ${System.getProperty("java.version")}, os ${System.getProperty("os.name")} ${System.getProperty("os.arch")}, " +

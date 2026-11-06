@@ -11,7 +11,7 @@ data class WindowConfig(
     val initialHeight: Int = 360,
 
     /** The title of the window. */
-    val title: String = "DreamDisplays",
+    val title: String = "AltDisplays",
 
     /** The backend to use for creating and rendering the window. Default is the detected default backend. */
     val backend: WindowBackend = WindowBackend.detectDefault(),
