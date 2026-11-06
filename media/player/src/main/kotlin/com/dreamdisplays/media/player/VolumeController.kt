@@ -20,11 +20,11 @@ internal class VolumeController(
     }
 
     /**
-     * Recomputes quadratic distance attenuation for [distance] against [maxRadius] and re-applies
-     * the effective volume only when the attenuation changed materially.
+     * Recomputes quadratic distance attenuation for [distance] against [maxRadius], times the
+     * server-set [rangeGain], and re-applies the effective volume only when it changed materially.
      */
-    fun updateAttenuation(distance: Double, maxRadius: Double) {
-        val attenuation = (1.0 - minOf(1.0, distance / maxRadius)).let { it * it }
+    fun updateAttenuation(distance: Double, maxRadius: Double, rangeGain: Double = 1.0) {
+        val attenuation = (1.0 - minOf(1.0, distance / maxRadius)).let { it * it } * rangeGain.coerceIn(0.0, 1.0)
         if (abs(attenuation - lastAttenuation) > 1e-5) {
             lastAttenuation = attenuation
             applyVolume(userVolume * attenuation)

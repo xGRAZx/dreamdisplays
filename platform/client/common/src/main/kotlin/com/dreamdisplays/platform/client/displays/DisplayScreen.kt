@@ -35,9 +35,12 @@ import com.dreamdisplays.media.player.MediaPlayer
 import com.dreamdisplays.platform.client.Initializer
 import com.dreamdisplays.platform.client.audio.ListenerPoseTracker
 import com.dreamdisplays.platform.client.audio.VoxelAcousticsProbe
+import com.dreamdisplays.platform.client.audiorange.AudioRangeClient
+import com.dreamdisplays.platform.client.audiorange.ViewSync
 import com.dreamdisplays.platform.client.core.DreamServices
 import com.dreamdisplays.platform.client.displays.DisplayScreen.Companion.DEFAULT_QUALITY
 import com.dreamdisplays.platform.client.displays.DisplayScreen.Companion.ENV_PROBE_INTERVAL_TICKS
+import com.dreamdisplays.platform.client.managers.PerformanceGovernor
 import com.dreamdisplays.platform.client.managers.ClientPacketManager
 import com.dreamdisplays.platform.client.managers.ClientStateManager
 import com.dreamdisplays.platform.client.managers.DisplayPopoutManager
@@ -70,13 +73,10 @@ class DisplayScreen(
     /** ID of the player who created and owns this display. */
     val ownerUuid: UUID,
 
-    /** Anchor block X coordinate. */
     private var x: Int,
 
-    /** Anchor block Y coordinate. */
     private var y: Int,
 
-    /** Anchor block Z coordinate. */
     private var z: Int,
 
     /** Direction the screen surface faces. */
@@ -105,7 +105,6 @@ class DisplayScreen(
     /** True when the picture hugs slabs and stairs instead of one flat quad. */
     var conforming: Boolean = false,
 ) {
-    /** Per-display client settings (volume, quality, mute, ...) loaded from disk. */
     private val savedSettings = ClientSettingsStore.getSettings(uuid, defaultVolume())
 
     /** True if the local player owns this display. */
@@ -146,7 +145,6 @@ class DisplayScreen(
     /** Wire ordinal of the scheduled [com.dreamdisplays.api.playback.model.PlaybackAction] (`PLAY`/`PAUSE`), or `-1` when none is set. */
     var scheduledAction: Int = -1
 
-    /** Monotonic mark of the last [retryVideo], or `null` if never retried this session. */
     @Volatile
     private var lastRetryMark: TimeSource.Monotonic.ValueTimeMark? = null
 
@@ -190,7 +188,6 @@ class DisplayScreen(
     /** The effective mode the player experiences — `WATCH_PARTY` while a session is live. */
     val effectiveMode: PlaybackMode get() = if (watchParty != null) PlaybackMode.WATCH_PARTY else mode
 
-    /** Local player permission context. */
     private fun ctx(): PlaybackContext = PlaybackContext(
         mode = effectiveMode,
         isOwner = owner,
@@ -200,11 +197,6 @@ class DisplayScreen(
         isPartyHost = watchParty?.isHost == true,
     )
 
-    /**
-     * Whether the display's access level shuts *this* player out, mirroring the server's own rule
-     * (see `PlaybackContexts.of`). Region membership can only be answered server-side, so it arrives
-     * per-viewer in [viewerInRegion] rather than being derived here.
-     */
     private fun lockedForMe(): Boolean = when (access) {
         DisplayAccess.EVERYONE -> false
         DisplayAccess.REGION -> !viewerInRegion
@@ -242,7 +234,6 @@ class DisplayScreen(
     /** The lock the player actually sees: base lock, or forced on by Watch Party / Broadcast. */
     val effectiveLocked: Boolean get() = PlaybackPermissions.isEffectivelyLocked(effectiveMode, lockedForMe())
 
-    /** Backing store for this display's GPU texture(s) and render types. */
     private val textureResource = DisplayTextureResource(uuid)
 
     /** The live RGBA texture, or `null` in YUV mode / before allocation. */
@@ -278,7 +269,7 @@ class DisplayScreen(
         set(value) {
             field = value
             applyEffectiveVolume()
-            ClientSettingsStore.updateSettings(uuid, value, quality, brightness, muted, paused)
+            saveSettings()
             DisplayRegistry.recordScreen(this)
         }
 
@@ -287,7 +278,7 @@ class DisplayScreen(
         set(value) {
             field = value.coerceIn(0f, 2f)
             mediaPlayer?.setBrightness(field)
-            ClientSettingsStore.updateSettings(uuid, volume, quality, field, muted, paused)
+            saveSettings()
             DisplayRegistry.recordScreen(this)
         }
 
@@ -296,12 +287,54 @@ class DisplayScreen(
         set(value) {
             field = value
             mediaPlayer?.setQuality(effectiveQuality(value), userInitiated = qualityWriteIsViewerAction)
-            ClientSettingsStore.updateSettings(uuid, volume, value, brightness, muted, paused)
+            saveSettings()
             DisplayRegistry.recordScreen(this)
         }
 
-    /** Set only for the duration of a [setQualityByViewer] write; see that method. Main thread only. */
     private var qualityWriteIsViewerAction = false
+
+    /**
+     * The viewer's own volume, brightness and quality while a server forces another value on this display
+     * (see [applyForcedView]); null while that one is not forced. These, not the forced values, are what
+     * gets saved, so a server never overwrites the viewer's own settings.
+     */
+    private var ownVolume: Float? = null
+    private var ownBrightness: Float? = null
+    private var ownQuality: VideoQuality? = null
+
+    private fun saveSettings() {
+        ClientSettingsStore.updateSettings(
+            uuid, ownVolume ?: volume, ownQuality ?: quality, ownBrightness ?: brightness, muted, paused,
+        )
+    }
+
+    /**
+     * Shows the values an audiorange server forces ([volume], [brightness], [quality]; null = not forced)
+     * without saving them. A value that stops being forced goes back to the viewer's own.
+     */
+    internal fun applyForcedView(volume: Float?, brightness: Float?, quality: VideoQuality?) {
+        if (volume != null) {
+            if (ownVolume == null) ownVolume = this.volume
+            if (abs(this.volume - volume) > 0.001f) this.volume = volume
+        } else ownVolume?.let {
+            ownVolume = null
+            this.volume = it
+        }
+        if (brightness != null) {
+            if (ownBrightness == null) ownBrightness = this.brightness
+            if (abs(this.brightness - brightness) > 0.001f) this.brightness = brightness
+        } else ownBrightness?.let {
+            ownBrightness = null
+            this.brightness = it
+        }
+        if (quality != null) {
+            if (ownQuality == null) ownQuality = this.quality
+            if (this.quality.serialize() != quality.serialize()) this.quality = quality
+        } else ownQuality?.let {
+            ownQuality = null
+            this.quality = it
+        }
+    }
 
     /**
      * Applies a viewer-chosen [value]. Identical to assigning [quality], except the player is told the
@@ -330,14 +363,8 @@ class DisplayScreen(
             mediaPlayer?.setAudioTrack(value)
         }
 
-    /**
-     * Viewer-saved audio track language still waiting for [audioTrackList] to resolve so it can be
-     * re-applied; re-armed on every video swap, cleared once tried (whether or not a match was found)
-     * or once the viewer picks a track manually in the meantime.
-     */
     private var pendingAudioTrackLangRestore: String? = savedSettings.audioTrackLang
 
-    /** Applies [pendingAudioTrackLangRestore] once the current video has resolved its audio tracks. */
     private fun restoreAudioTrackIfPending() {
         val wanted = pendingAudioTrackLangRestore ?: return
         val tracks = audioTrackList
@@ -366,110 +393,62 @@ class DisplayScreen(
         if (match != null) subtitleTrack = match.lang
     }
 
-    /** Broadcast pins to cap; otherwise applies distance steps, then the on-screen size cap. */
     private fun effectiveQuality(requested: VideoQuality = quality): VideoQuality {
         val base = if (qualityCap > 0) VideoQuality.Fixed(qualityCap) else requested
-        val stepped = applyDistanceSteps(base)
-        val lod = sizeLodHeight
-        if (lod <= 0 || lod >= (stepped.targetHeight ?: DEFAULT_QUALITY)) return stepped
-        return VideoQuality.Fixed(lod)
+        return applyDistanceSteps(base)
     }
 
     /**
      * The quality the player opens a new video at: the requested quality, capped and stepped down for
-     * distance / on-screen size like every later switch, so a far display never starts at full resolution.
+     * distance like every later switch, so a far display never starts at full resolution.
      */
     internal val playbackQuality: VideoQuality get() = effectiveQuality()
 
-    /** How many rungs down [QUALITY_LADDER] the current distance has pushed the effective quality; 0 when close. */
     private var distanceQualitySteps = 0
 
+    /** [PerformanceGovernor.qualitySteps] as last applied to this display, so a change re-pushes the quality. */
+    private var performanceQualitySteps = 0
+
+    /** Extra rungs down while the display has been out of view for a while (see [hiddenForAWhile]). */
+    private var hiddenQualitySteps = 0
+
+    /** [System.nanoTime] of the last frame this display was inside the view; starts at creation. */
+    private var lastSeenNanos = System.nanoTime()
+
+    /** Called by the renderer for every frame in which this display is inside the view. */
+    internal fun markSeen() {
+        lastSeenNanos = System.nanoTime()
+    }
+
+    /** True once the display has been out of view (behind the player, or the game not drawing) for a while. */
+    internal val hiddenForAWhile: Boolean
+        get() = HIDDEN_LOD_ENABLED && System.nanoTime() - lastSeenNanos > HIDDEN_LOD_AFTER_NANOS
+
     /**
-     * Highest quality (pixel height) the display's on-screen size warrants, capping the effective quality;
-     * never below [SIZE_LOD_MIN_HEIGHT], and 0 while no cap applies. Independent of the requested quality,
-     * so a viewer picking another quality is never stepped twice.
+     * Re-derives the distance, performance and hidden steps, and re-pushes the quality if any changed. A
+     * display nobody has seen for [HIDDEN_LOD_AFTER_NANOS] (it is behind the player) drops [HIDDEN_STEPS]
+     * rungs, so its sound plays on while its picture costs little; it sharpens as soon as it comes back into
+     * view. Paused pictures and live streams keep their quality, since a switch would blank or restart them.
      */
-    private var sizeLodHeight = 0
-
-    /** [System.nanoTime] since the size LOD has wanted a switch it is still waiting out, or 0 while it doesn't. */
-    private var sizeLodSinceNanos = 0L
-
-    /** Re-derives the distance steps and the on-screen size cap, and re-pushes the quality if either changed. */
-    private fun updateDistanceQuality(fraction: Float, distance: Double) {
+    private fun updateDistanceQuality(fraction: Float) {
         var steps = distanceQualitySteps
         while (steps < DISTANCE_STEP_THRESHOLDS.size && fraction >= DISTANCE_STEP_THRESHOLDS[steps]) steps++
         while (steps > 0 && fraction < DISTANCE_STEP_THRESHOLDS[steps - 1] - DISTANCE_STEP_HYSTERESIS) steps--
-        val lod = nextSizeLodHeight(distance)
-        if (steps == distanceQualitySteps && lod == sizeLodHeight) return
+        val performance = PerformanceGovernor.qualitySteps
+        val hidden = when {
+            !hiddenForAWhile || virtual -> 0
+            videoStarted && (paused || isLive) -> hiddenQualitySteps
+            else -> HIDDEN_STEPS
+        }
+        if (steps == distanceQualitySteps && performance == performanceQualitySteps && hidden == hiddenQualitySteps) return
         distanceQualitySteps = steps
-        sizeLodHeight = lod
+        performanceQualitySteps = performance
+        hiddenQualitySteps = hidden
         reloadQuality()
     }
 
-    /**
-     * Size LOD: the display's projected height on screen decides how many pixels are worth decoding,
-     * converting and uploading. Sharpening happens right away (with a hysteresis band); softening waits out
-     * [SIZE_LOD_DWELL_NANOS] so walking past doesn't churn streams. Once playing, a paused picture holds its
-     * resolution (a switch would blank it) and a live stream only ever sharpens, after the same dwell, since
-     * each live switch restarts it.
-     */
-    private fun nextSizeLodHeight(distance: Double): Int {
-        // A fullscreen broadcast's synthetic display has no meaningful world position to size by
-        if (!SIZE_LOD_ENABLED || virtual) return 0
-        val started = videoStarted
-        if (started && paused) return sizeLodHeight
-        val live = started && isLive
-
-        val base = (if (qualityCap > 0) qualityCap else quality.targetHeight) ?: DEFAULT_QUALITY
-        val current = if (sizeLodHeight <= 0) base else min(sizeLodHeight, base)
-        val neededPx = height * focalLengthPx() / max(distance, 1.0) * SIZE_LOD_OVERSAMPLE
-        val strict = min(base, lodRungFor(neededPx))
-        val relaxed = min(base, lodRungFor(neededPx * SIZE_LOD_UP_HYSTERESIS))
-
-        val wanted = when {
-            relaxed > current -> relaxed
-            strict < current && !live -> strict
-            else -> {
-                sizeLodSinceNanos = 0L
-                return sizeLodHeight
-            }
-        }
-        // Before playback starts there is no stream to switch yet: just pick the starting quality
-        if (!started) {
-            sizeLodSinceNanos = 0L
-            return wanted
-        }
-        if (wanted < current || live) {
-            val now = System.nanoTime()
-            if (sizeLodSinceNanos == 0L) sizeLodSinceNanos = now
-            if (now - sizeLodSinceNanos < SIZE_LOD_DWELL_NANOS) return sizeLodHeight
-        }
-        if (!tryAcquireLodSwitch()) return sizeLodHeight
-        sizeLodSinceNanos = 0L
-        return wanted
-    }
-
-    /** Works out the size cap before a new player resolves its first stream, so a far display starts small. */
-    internal fun primeSizeLod() {
-        if (isPopoutActive) return
-        val player = Minecraft.getInstance().player ?: return
-        sizeLodHeight = nextSizeLodHeight(getDistanceToScreen(player.blockPosition()))
-    }
-
-    /** Smallest [QUALITY_LADDER] rung (at least [SIZE_LOD_MIN_HEIGHT]) that delivers [neededPx] rows. */
-    private fun lodRungFor(neededPx: Double): Int {
-        var i = QUALITY_LADDER.lastIndex
-        while (i >= 0) {
-            val rung = QUALITY_LADDER[i]
-            if (rung >= SIZE_LOD_MIN_HEIGHT && rung >= neededPx) return rung
-            i--
-        }
-        return QUALITY_LADDER[0]
-    }
-
-    /** Moves [base] down [distanceQualitySteps] rungs in [QUALITY_LADDER]; a no-op at 0 steps. */
     private fun applyDistanceSteps(base: VideoQuality): VideoQuality {
-        val stepsDown = distanceQualitySteps
+        val stepsDown = distanceQualitySteps + performanceQualitySteps + hiddenQualitySteps
         if (stepsDown <= 0) return base
         val baseHeight = base.targetHeight ?: DEFAULT_QUALITY
         val idx = QUALITY_LADDER.indexOfFirst { it <= baseHeight }.let { if (it < 0) QUALITY_LADDER.lastIndex else it }
@@ -483,7 +462,6 @@ class DisplayScreen(
     /** Local paused state (user intent / server-followed). */
     internal var paused: Boolean = savedSettings.paused
 
-    /** Temporary mute applied while the game window is unfocused; does not change [muted]. */
     private var focusMuted: Boolean = false
 
     /** Distance in blocks past which the display is unloaded; mirrors the client's own render distance option. */
@@ -495,59 +473,42 @@ class DisplayScreen(
     /** Follows the server-authoritative timeline (Synced / Broadcast / watch party). */
     internal val timelineFollower = TimelineFollower(this)
 
-    /** Owns the media player lifecycle (creation, swaps, teardown). */
     private val media = DisplayMediaController(this)
-
-    /** Emits the local player's watch-party control intents. */
     private val watchPartyController = WatchPartyController(this)
-
-    /** Pushes decoded frames into the GPU texture(s) on the render thread. */
     private val frameUploader = DisplayFrameUploader(uuid)
-
-    /** The active media player, or `null` between videos. */
     private val mediaPlayer: MediaPlayer? get() = media.player
 
     /** Warm-parked out of render distance: decoder + audio open, instant resume. */
     @Volatile
     var isDormant: Boolean = false; private set
 
-    /** [System.nanoTime] when the display entered warm park; used for TTL eviction. */
     private var dormantSinceNanos = 0L
-
-    /** Manages the PiP / window / fullscreen popout for this display. */
     private val popoutManager = DisplayPopoutManager(this)
 
     /** The currently loaded video URL, or `null` when idle. */
     var videoUrl: String? = null; private set
 
-    /** True while a client-side URL override is active (suppresses server URL changes). */
     private var clientUrlOverride: Boolean = false
 
-    /** Cached [BlockPos] for the anchor, lazily rebuilt when [x]/[y]/[z] change. */
     @Transient
     private var blockPos: BlockPos? = null
 
-    /** True once a frame uploaded; holds last frame across quality handoff. Reset by [createTexture]. */
     @Transient
     @Volatile
     private var hasEverRendered = false
 
-    /** [System.nanoTime] of the first uploaded frame, driving to appear fade-in. `0` = none yet. */
     @Transient
     @Volatile
     private var firstFrameNanos = 0L
 
-    /** True while waiting for the server's first timeline before showing the video (Synced / Broadcast / WP). */
     @Transient
     @Volatile
     private var waitingForInitialTimeline = false
 
-    /** Timeline wait timeout tracker (self-heals stranded "Waiting..." on stale packet). */
     @Transient
     @Volatile
     private var waitingSinceNanos = 0L
 
-    /** Re-checks initial timeline wait; self-clears on timeout. */
     private fun stillWaitingForInitialTimeline(): Boolean {
         if (waitingForInitialTimeline && waitingSinceNanos != 0L &&
             System.nanoTime() - waitingSinceNanos > WAITING_FOR_TIMELINE_TIMEOUT_NANOS
@@ -560,17 +521,20 @@ class DisplayScreen(
     /** Audio track / language of the current video, or `null` when idle. */
     var lang: String? = null; private set
 
-    /**
-     * The server's own [DisplayInfo.lang] as of the last packet, tracked separately from [lang] so that
-     * substituting the viewer's saved audio-track preference into the actual load (see [updateData])
-     * never fights the server's value on every following packet.
-     */
     private var lastPacketLang: String? = null
 
     /** True once the video is effectively playing: not awaiting the initial timeline and a frame has filled. */
     val isVideoStarted: Boolean get() = !stillWaitingForInitialTimeline() && (hasEverRendered || mediaPlayer?.textureFilled() == true)
 
-    /** Marks that a frame has rendered, stamping the first-frame time so to appear fade-in can run. */
+    private var publishedVideoStarted = false
+
+    private fun publishStartedFlip() {
+        val started = isVideoStarted
+        if (started == publishedVideoStarted) return
+        publishedVideoStarted = started
+        DisplayRegistry.recordScreen(this)
+    }
+
     private fun markRendered() {
         if (!hasEverRendered) firstFrameNanos = System.nanoTime()
         hasEverRendered = true
@@ -617,11 +581,11 @@ class DisplayScreen(
 
     /** Pixel heights of the qualities available for the current video. */
     val qualityList: List<Int>
-        get() = mediaPlayer?.getAvailableQualities() ?: emptyList()
+        get() = mediaPlayer?.getAvailableQualities() ?: []
 
     /** Audio tracks available for the current video (more than one only when the provider exposes dubs). */
     val audioTrackList: List<MediaStream>
-        get() = mediaPlayer?.getAvailableAudioTracks() ?: emptyList()
+        get() = mediaPlayer?.getAvailableAudioTracks() ?: []
 
     /** Resolved URL of the audio track currently playing, or empty before a stream has resolved. */
     val currentAudioTrackUrl: String
@@ -633,7 +597,7 @@ class DisplayScreen(
 
     /** Subtitle tracks available for the current video (empty unless the provider exposed captions). */
     val subtitleTrackList: List<SubtitleTrack>
-        get() = mediaPlayer?.getAvailableSubtitleTracks() ?: emptyList()
+        get() = mediaPlayer?.getAvailableSubtitleTracks() ?: []
 
     /** Language of the currently selected subtitle track, or null when subtitles are off. */
     val currentSubtitleLang: String?
@@ -678,7 +642,6 @@ class DisplayScreen(
         return true
     }
 
-    /** Internal loader: delegates the player swap to the [media] controller. */
     private fun loadVideoInternal(videoUrl: String, lang: String, preservePausedState: Boolean) {
         media.load(videoUrl, lang, preservePausedState)
     }
@@ -714,7 +677,6 @@ class DisplayScreen(
         mediaPlayer?.clearFrame()
     }
 
-    /** True when the current mode takes its timeline from the server (Synced / Broadcast / watch party). */
     private fun requiresServerTimeline(): Boolean =
         mode == PlaybackMode.SYNCED || mode == PlaybackMode.BROADCAST || watchParty != null
 
@@ -735,7 +697,6 @@ class DisplayScreen(
         )
     }
 
-    /** Lazily created menu-preview texture, kept alive across menu close/reopen (see [PreviewFrameTexture]). */
     @Transient
     private var previewFrameCache: PreviewFrameTexture? = null
 
@@ -810,7 +771,6 @@ class DisplayScreen(
         }
     }
 
-    /** Sends a [RequestSync] packet to ask the server for the current playback state. */
     private fun sendRequestSyncPacket() {
         Initializer.sendPacket(RequestSync(uuid))
     }
@@ -889,7 +849,6 @@ class DisplayScreen(
         PlacedDisplays.distance(uuid, width, height, depth, facing, pos)
             ?: DisplayGeometry.distanceTo(pos.x, pos.y, pos.z, x, y, z, width, height, facing, depth)
 
-    /** [sourcePlane]'s last result and the geometry it was built from (displays rarely move). */
     private var cachedPlane: SourcePlane? = null
     private var planeX = 0
     private var planeY = 0
@@ -899,7 +858,6 @@ class DisplayScreen(
     private var planeDepth = 0
     private var planeFacing: DisplayFacing? = null
 
-    /** The planar sound source for the current geometry, rebuilt (and the room reverb re-probed) only when it moved. */
     private fun sourcePlane(): SourcePlane {
         // A display an addon has moved cannot use the cache: its plane changes every tick.
         PlacedDisplays.sourcePlane(uuid, width, height, depth, facing)?.let { return it }
@@ -913,7 +871,6 @@ class DisplayScreen(
         return toSourcePlane().also { cachedPlane = it }
     }
 
-    /** Builds the world-space planar sound source fed to the acoustics engine (see [tick]). */
     private fun toSourcePlane(): SourcePlane {
         val pose = DisplayGeometry.pose(x, y, z, width, height, facing, depth)
         return SourcePlane(
@@ -931,7 +888,6 @@ class DisplayScreen(
         frameUploader.upload(mp, textureResource, onRendered)
     }
 
-    /** [markRendered] as a stable function object, so the per-frame upload call allocates nothing. */
     private val onRendered: () -> Unit = ::markRendered
 
     /**
@@ -943,7 +899,6 @@ class DisplayScreen(
         if (textureResource.hasPending) fitTexture()
     }
 
-    /** Scratch for [boundingSphere]; render thread only. */
     private val sphereScratch = DoubleArray(4)
 
     /** World-space bounding sphere of the display's blocks as center x / y / z and radius, refreshed per call. */
@@ -987,7 +942,6 @@ class DisplayScreen(
         popoutManager.deactivate(mediaPlayer)
     }
 
-    /** Whether the active fullscreen overlay should stay open (re-showing) past the video's end instead of auto-closing. */
     private var fullscreenLoop = false
 
     /** [fullscreenLoop] exposed to [DisplayPlaybackHost]. */
@@ -1039,7 +993,6 @@ class DisplayScreen(
     /** Applies the server's pause state without emitting any upstream intent (timeline-follower path). */
     internal fun applyServerPaused(paused: Boolean) = applyPausedLocal(paused)
 
-    /** Toggles the local player's pause state and persists it; never touches the network. */
     private fun applyPausedLocal(paused: Boolean) {
         if (!videoStarted) {
             this.paused = paused
@@ -1050,7 +1003,7 @@ class DisplayScreen(
         if (this.paused == paused) return
         this.paused = paused
         if (paused) mediaPlayer?.pause() else mediaPlayer?.play()
-        ClientSettingsStore.updateSettings(uuid, volume, quality, brightness, muted, paused)
+        saveSettings()
         DisplayRegistry.recordScreen(this)
     }
 
@@ -1062,11 +1015,10 @@ class DisplayScreen(
         savedTimeNanos = positionNanos.coerceAtLeast(0L)
         if (paused) return
         paused = true
-        ClientSettingsStore.updateSettings(uuid, volume, quality, brightness, muted, paused)
+        saveSettings()
         DisplayRegistry.recordScreen(this)
     }
 
-    /** Emits the upstream intent for the current mode (no-op for Local / Broadcast / non-host). */
     private fun emitPlaybackIntent(action: PlaybackAction, positionMs: Long = currentTimeNanos / 1_000_000L) {
         when (effectiveMode) {
             PlaybackMode.SYNCED -> Initializer.sendPacket(PlaybackCommand(uuid, action.wire, positionMs))
@@ -1077,7 +1029,6 @@ class DisplayScreen(
         }
     }
 
-    /** Maps a generic playback action onto its watch-party equivalent. */
     private fun PlaybackAction.toWatchPartyAction(): WatchPartyAction = when (this) {
         PlaybackAction.PLAY -> WatchPartyAction.RESUME
         PlaybackAction.PAUSE -> WatchPartyAction.PAUSE
@@ -1123,7 +1074,6 @@ class DisplayScreen(
         if (screen is DisplayMenu && screen.displayScreen === this) screen.onClose()
     }
 
-    /** Captures a native replay snapshot before a local display is softly unloaded. */
     private fun captureReplayCache() {
         if (mode != PlaybackMode.LOCAL || watchParty != null || isLive) return
         val url = videoUrl ?: return
@@ -1131,15 +1081,12 @@ class DisplayScreen(
         val position = currentTimeNanos
         val started = System.nanoTime()
         val snapshot = mp.captureReplaySnapshot() ?: return
-        val audioPcm = mp.captureReplayAudio()
-        val prepared = mp.capturePreparedMedia()
-        DisplayReplayCache.put(uuid, url, position, snapshot, audioPcm, prepared)
+        DisplayReplayCache.put(uuid, url, position, snapshot, mp.capturePreparedMedia())
         val elapsedMs = (System.nanoTime() - started) / 1_000_000.0
         logger.debug(
-            "{} captured replay snapshot bytes={} audioPcm={}B at {} ms in {} ms.",
+            "{} captured replay snapshot bytes={} at {} ms in {} ms.",
             uuid,
             snapshot.size,
-            audioPcm?.size ?: 0,
             "%.1f".format(position / 1_000_000.0),
             "%.1f".format(elapsedMs)
         )
@@ -1150,7 +1097,7 @@ class DisplayScreen(
         if (muted == status) return
         muted = status
         applyEffectiveVolume()
-        ClientSettingsStore.updateSettings(uuid, volume, quality, brightness, muted, paused)
+        saveSettings()
         DisplayRegistry.recordScreen(this)
     }
 
@@ -1217,7 +1164,9 @@ class DisplayScreen(
     internal fun primeNewPlayerVolume(mp: MediaPlayer) {
         val player = Minecraft.getInstance().player ?: return
         val maxRadius = if (isPopoutActive) Double.MAX_VALUE else ClientStateManager.config.defaultDistance.toDouble()
-        mp.primeVolume(if (muted || focusMuted) 0f else volume, getDistanceToScreen(player.blockPosition()), maxRadius)
+        mp.primeVolume(
+            if (muted || focusMuted) 0f else volume, getDistanceToScreen(player.blockPosition()), maxRadius, rangeGain(),
+        )
     }
 
     /** Whether this display can be parked warm when it leaves render distance (Local VOD on the
@@ -1269,46 +1218,42 @@ class DisplayScreen(
      */
     private fun parseQualityOrDefault(): Int = effectiveQuality().targetHeight ?: DEFAULT_QUALITY
 
-    /** Vertical focal length of the game camera in pixels: on-screen rows covered by one block one block away. */
-    private fun focalLengthPx(): Double {
-        val mc = Minecraft.getInstance()
-        val fov = mc.options.fov().get().toDouble().coerceIn(1.0, 179.0)
-        return mc.window.height.coerceAtLeast(1) / (2.0 * tan(Math.toRadians(fov) / 2.0))
-    }
-
-    /** Last raytraced acoustic environment, refreshed on the [ENV_PROBE_INTERVAL_TICKS] cadence. */
     private var cachedEnvironment: AcousticEnvironment = AcousticEnvironment.OPEN_AIR
+    private var cachedReverb: AcousticEnvironment? = null
+    private var envProbeCountdown: Int = uuid.hashCode().mod(ENV_PROBE_INTERVAL_TICKS)
+    private var reverbProbeCountdown: Int = uuid.hashCode().mod(REVERB_PROBE_INTERVAL_TICKS)
 
     /**
-     * Last room-reverb probe (occlusion 0). The blocks around a display rarely change, so its 24 rays run on
-     * the slow [REVERB_PROBE_INTERVAL_TICKS] cadence instead of with every occlusion probe; null = re-probe.
+     * Server-set sound limits for this tick (audiorange range fade x wool / carpet absorption), `0`..`1`.
+     * A popout plays for the viewer alone, so no limit applies to it.
      */
-    private var cachedReverb: AcousticEnvironment? = null
-
-    /** Ticks remaining before the next voxel-acoustics re-probe; jittered per-display to avoid synchronized spikes. */
-    private var envProbeCountdown: Int = uuid.hashCode().mod(ENV_PROBE_INTERVAL_TICKS)
-
-    /** Ticks remaining before the room reverb is re-probed; jittered like [envProbeCountdown]. */
-    private var reverbProbeCountdown: Int = uuid.hashCode().mod(REVERB_PROBE_INTERVAL_TICKS)
+    internal fun rangeGain(advance: Boolean = true): Double {
+        if (isPopoutActive || AudioRangeClient.noLimits) return 1.0
+        val pose = ListenerPoseTracker.currentPose(Minecraft.getInstance())
+        return AudioRangeClient.gainFor(uuid, x, y, z, sourcePlane(), pose, advance)
+    }
 
     /** Called every game tick to update distance-based volume attenuation from [pos]. */
     fun tick(pos: BlockPos) {
+        ViewSync.tick(this)
         val maxRadius = if (isPopoutActive) Double.MAX_VALUE else ClientStateManager.config.defaultDistance.toDouble()
         val distance = getDistanceToScreen(pos)
-        mediaPlayer?.tick(distance, maxRadius)
+        val rangeGain = rangeGain()
+        mediaPlayer?.tick(distance, maxRadius, rangeGain)
         restoreAudioTrackIfPending()
         restoreSubtitleTrackIfPending()
+        publishStartedFlip()
         if (isPopoutActive) {
-            if (distanceQualitySteps != 0 || sizeLodHeight != 0) {
+            if (distanceQualitySteps != 0 || performanceQualitySteps != 0 || hiddenQualitySteps != 0) {
                 distanceQualitySteps = 0
-                sizeLodHeight = 0
-                sizeLodSinceNanos = 0L
+                performanceQualitySteps = 0
+                hiddenQualitySteps = 0
                 reloadQuality()
             }
         } else {
-            updateDistanceQuality((distance / renderDistance.coerceAtLeast(1)).toFloat(), distance)
+            updateDistanceQuality((distance / renderDistance.coerceAtLeast(1)).toFloat())
         }
-        if (ClientStateManager.config.audioAcoustics == AcousticQuality.OFF) return
+        if (ViewSync.effectiveAcoustics == AcousticQuality.OFF) return
         val plane = sourcePlane()
         DreamServices.registry.getOrNull(AudioAcousticsServices.ACOUSTICS)?.updateSource(
             uuid,
@@ -1319,16 +1264,13 @@ class DisplayScreen(
                 bypassSpatial = isPopoutActive,
                 acousticsEnabled = acousticsEnabled,
                 environment = probeEnvironment(plane, distance),
+                rangeGain = rangeGain.toFloat(),
             ),
         )
     }
 
-    /**
-     * Acoustic environment: occlusion re-traced every [ENV_PROBE_INTERVAL_TICKS] ticks (less often for far
-     * displays), room reverb every [REVERB_PROBE_INTERVAL_TICKS]; a silent display keeps its last result.
-     */
     private fun probeEnvironment(plane: SourcePlane, distance: Double): AcousticEnvironment {
-        val tier = ClientStateManager.config.audioAcoustics
+        val tier = ViewSync.effectiveAcoustics
         if (isPopoutActive || !acousticsEnabled || (tier != AcousticQuality.ADVANCED && tier != AcousticQuality.ULTRA)) {
             cachedEnvironment = AcousticEnvironment.OPEN_AIR
             cachedReverb = null
@@ -1368,22 +1310,11 @@ class DisplayScreen(
     }
 
     companion object {
-        /** Logger for replay-capture and diagnostic messages. */
         private val logger = LoggerFactory.getLogger(javaClass)
-
-        /** Ticks between voxel-acoustics re-probes; the DSP chain smooths across this gap. */
         private const val ENV_PROBE_INTERVAL_TICKS = 2
-
-        /** Ticks between room-reverb re-probes (24 rays each); it only changes when blocks near the display do. */
         private const val REVERB_PROBE_INTERVAL_TICKS = 40
-
-        /** Within this many blocks occlusion is re-traced at the full [ENV_PROBE_INTERVAL_TICKS] cadence. */
         private const val NEAR_PROBE_DISTANCE = 16.0
-
-        /** Up to this many blocks occlusion is re-traced at half that cadence; further away at a quarter. */
         private const val MID_PROBE_DISTANCE = 48.0
-
-        /** Grace window after a manual retry during which new media errors are swallowed rather than shown. */
         private val ERROR_RETRY_COOLDOWN = 15.seconds
 
         /** Initial per-display volume for newly seen displays. */
@@ -1393,58 +1324,24 @@ class DisplayScreen(
             return ClientStateManager.config.newDisplayVolume.toFloat().coerceIn(0f, 1f)
         }
 
-        /** Fallback target quality (pixel height) when none is resolvable. */
         private const val DEFAULT_QUALITY = 1080
-
-        /** Quality rungs [applyDistanceSteps] moves down through, highest to lowest. */
         private val QUALITY_LADDER = intArrayOf(2160, 1440, 1080, 720, 480, 360, 240, 144)
-
-        /** Distance quality step down-thresholds as render-distance fraction. */
         private val DISTANCE_STEP_THRESHOLDS = floatArrayOf(0.66f, 0.75f)
-
-        /** Hysteresis to prevent quality flip-flop at step boundaries. */
         private const val DISTANCE_STEP_HYSTERESIS = 0.05f
 
-        /** Kill switch: `-Ddreamdisplays.lod.size=false` keeps every display at its requested quality regardless of on-screen size. */
-        private val SIZE_LOD_ENABLED: Boolean =
-            System.getProperty("dreamdisplays.lod.size")?.toBooleanStrictOrNull() ?: true
+        /** Kill switch: `-Ddreamdisplays.lod.hidden=false` keeps displays behind the player at their usual quality. */
+        private val HIDDEN_LOD_ENABLED: Boolean =
+            System.getProperty("dreamdisplays.lod.hidden")?.toBooleanStrictOrNull() ?: true
 
-        /** Rows decoded per on-screen row; above 1 so the picture stays crisp under bilinear minification. */
-        private const val SIZE_LOD_OVERSAMPLE = 1.5
+        /** How long a display must stay out of view before [hiddenForAWhile] lowers its quality. */
+        private const val HIDDEN_LOD_AFTER_NANOS = 10_000_000_000L
 
-        /** The size LOD never steps below this height (the ladder itself goes lower for the far-distance steps). */
-        private const val SIZE_LOD_MIN_HEIGHT = 360
+        /** Rungs a hidden display drops (1080p becomes 480p). */
+        private const val HIDDEN_STEPS = 3
 
-        /** Sharpening needs this much more on-screen size than softening did, so a boundary doesn't flip-flop. */
-        private const val SIZE_LOD_UP_HYSTERESIS = 1.3
-
-        /** How long the size LOD must keep asking for a lower rung (or, live, a higher one) before switching. */
-        private const val SIZE_LOD_DWELL_NANOS = 3_000_000_000L
-
-        /** Minimum spacing between two size-LOD stream switches across all displays (main thread only). */
-        private const val LOD_SWITCH_SPACING_NANOS = 250_000_000L
-
-        /** Earliest [System.nanoTime] the next size-LOD switch may start; spreads a burst over several ticks. */
-        private var nextLodSwitchNanos = 0L
-
-        /** Claims the global size-LOD switch slot, so many displays never re-open their streams in the same tick. */
-        private fun tryAcquireLodSwitch(): Boolean {
-            val now = System.nanoTime()
-            if (now < nextLodSwitchNanos) return false
-            nextLodSwitchNanos = now + LOD_SWITCH_SPACING_NANOS
-            return true
-        }
-
-        /** Skip the restore seek when already within this tolerance of the saved position. */
         private const val RESTORE_SEEK_TOLERANCE_NS = 250_000_000L
-
-        /** Duration of the first-frame fade-in (see [appearProgress]). */
         private const val APPEAR_FADE_NANOS = 260_000_000L
-
-        /** Self-heal timeout for [waitingForInitialTimeline] (prevents stranded "Waiting for video..."). */
         private const val WAITING_FOR_TIMELINE_TIMEOUT_NANOS = 5_000_000_000L
-
-        /** Maximum server-prescribed default volume accepted by the client (200% in the UI). */
         private const val MAX_SERVER_DEFAULT_VOLUME = 1.0f
 
         /**
@@ -1453,7 +1350,10 @@ class DisplayScreen(
          */
         internal fun clientRenderDistanceBlocks(): Int {
             val minecraft = Minecraft.getInstance()
+            //? if >=1.19 {
             val render = minecraft.options.renderDistance().get()
+            //?} else
+            /*val render = minecraft.options.renderDistance*/
             val simulation = minecraft.level?.serverSimulationDistance?.takeIf { it > 0 } ?: render
             val own = ClientStateManager.config.displayDistanceChunks.takeIf { it > 0 } ?: render
             return minOf(render, simulation, own) * 16

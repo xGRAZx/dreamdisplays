@@ -1,17 +1,20 @@
 {
   "schemaVersion": 1,
   "id": "dreamdisplays",
-  "name": "Dream Displays",
+  "name": "AltDisplays",
   "version": "${version}",
   "license": "LGPL-3.0",
-  "description": "Create in-game screens to stream your favorite videos in Minecraft.",
+  "description": "AltDisplays by GRAZ: in-game screens with server-set sound range. Based on Dream Displays by arnodoelinger, INotSleep, Kolyakot33 and Toffikk.",
   "authors": [
-    "arnodoelinger, INotSleep, Kolyakot33, Toffikk"
+    "GRAZ"
+  ],
+  "contributors": [
+    "arnodoelinger", "INotSleep", "Kolyakot33", "Toffikk"
   ],
   "contact": {
-    "homepage": "https://github.com/arnodoelinger/dreamdisplays",
-    "sources": "https://github.com/arnodoelinger/dreamdisplays",
-    "issues": "https://github.com/arnodoelinger/dreamdisplays/issues"
+    "homepage": "https://github.com/xGRAZx/dreamdisplays",
+    "sources": "https://github.com/xGRAZx/dreamdisplays",
+    "issues": "https://github.com/xGRAZx/dreamdisplays/issues"
   },
   "entrypoints": {
     "client": [
@@ -30,7 +33,7 @@
   ],
   "accessWidener": "dreamdisplays.classtweaker",
   "depends": {
-    "fabricloader": ">=0.19",
+    "fabricloader": ">=${fabricLoaderMin}",
     "fabric-api": "*",
     "minecraft": "${minecraftVersion}",
     "java": ">=${javaVersion}"

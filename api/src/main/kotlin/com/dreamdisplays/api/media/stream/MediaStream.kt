@@ -1,13 +1,10 @@
 package com.dreamdisplays.api.media.stream
 
-import com.dreamdisplays.api.Unstable
-
 /**
  * One playable media track or muxed stream produced by a resolver.
  *
  * @since 1.6.x
  */
-@Unstable
 data class MediaStream(
     /** Direct URL the player can open. */
     val url: String,
@@ -18,13 +15,13 @@ data class MediaStream(
     /** Codec name, if the resolver exposed it. */
     val codec: String?,
 
-    /** Video width in pixels, or null for audio-only / unknown streams. */
+    /** Video width in pixels, or `null` for audio-only / unknown streams. */
     val width: Int?,
 
-    /** Video height in pixels, or null for audio-only / unknown streams. */
+    /** Video height in pixels, or `null` for audio-only / unknown streams. */
     val height: Int?,
 
-    /** Video frame rate, or null for audio-only / unknown streams. */
+    /** Video frame rate, or `null` for audio-only / unknown streams. */
     val fps: Double?,
 
     /** Stream bitrate in bits per second, if known. */

@@ -1,7 +1,6 @@
 package com.dreamdisplays.api.server
 
 import com.dreamdisplays.api.CommandResult
-import com.dreamdisplays.api.Unstable
 import com.dreamdisplays.api.display.data.MutableDisplayCustomData
 import com.dreamdisplays.api.display.model.property.DisplayFacing
 import com.dreamdisplays.api.playback.model.DisplayAccess
@@ -9,12 +8,12 @@ import com.dreamdisplays.api.playback.model.PlaybackMode
 import java.util.UUID
 
 /**
- * A display as the server knows it: who owns it, where it is and what it shows. The server does not play video;
- * playback happens on the players' clients.
+ * A display as the server knows it: who owns it, where it is and what it shows.
+ *
+ * The server does not play video; playback happens on the players' clients.
  *
  * @since 1.10.x
  */
-@Unstable
 interface ServerDisplay {
     /** Persistent ID. */
     val id: UUID
@@ -57,6 +56,14 @@ interface ServerDisplay {
 
     /** Who may change this display. */
     val access: DisplayAccess
+
+    /**
+     * Events of this display only.
+     *
+     * Subscriptions end by themselves when the display is removed;
+     * close a returned handle to end one earlier.
+     */
+    val events: ServerEvents
 
     /** Data addons keep on this display: saved with it and sent to every client that sees it. */
     val customData: MutableDisplayCustomData

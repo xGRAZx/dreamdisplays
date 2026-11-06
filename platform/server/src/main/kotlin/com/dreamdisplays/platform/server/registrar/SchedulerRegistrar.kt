@@ -16,16 +16,9 @@ import java.util.concurrent.TimeUnit
  */
 @PaperOnly
 object SchedulerRegistrar {
-    /** The interval between display updates in ticks. */
     private const val TICKS_PER_SECOND = 20L
-
-    /** Tick delay in milliseconds. */
     private const val TICK_MILLIS = 50L
-
-    /** The interval between update checks in ticks. */
     private const val DISPLAY_UPDATE_INTERVAL_TICKS = 1L * TICKS_PER_SECOND
-
-    /** The interval between update checks in ticks. */
     private const val UPDATE_CHECK_INTERVAL_TICKS = 60L * 60L * TICKS_PER_SECOND
 
     /** Schedules the periodic display update tick and, when enabled, the hourly update check. */
@@ -60,7 +53,6 @@ object SchedulerRegistrar {
         }
     }
 
-    /** Schedules [task] on the `Paper` / `Folia` global tick scheduler. */
     private fun runRepeatingSync(plugin: PaperServer, delayTicks: Long, intervalTicks: Long, task: Runnable) {
         if (PlatformUtil.isFolia) {
             plugin.server.globalRegionScheduler.runAtFixedRate(
@@ -74,14 +66,18 @@ object SchedulerRegistrar {
         }
     }
 
-    /** Schedules [task] on `Paper`'s async scheduler. */
+    // The Paper async scheduler only exists from 1.20 (alongside Folia), so plain Paper uses the Bukkit one
     private fun runRepeatingAsync(plugin: PaperServer, delayTicks: Long, intervalTicks: Long, task: Runnable) {
-        plugin.server.asyncScheduler.runAtFixedRate(
-            plugin,
-            { task.run() },
-            delayTicks.coerceAtLeast(0L) * TICK_MILLIS,
-            intervalTicks.coerceAtLeast(1L) * TICK_MILLIS,
-            TimeUnit.MILLISECONDS,
-        )
+        if (PlatformUtil.isFolia) {
+            plugin.server.asyncScheduler.runAtFixedRate(
+                plugin,
+                { task.run() },
+                delayTicks.coerceAtLeast(0L) * TICK_MILLIS,
+                intervalTicks.coerceAtLeast(1L) * TICK_MILLIS,
+                TimeUnit.MILLISECONDS,
+            )
+        } else {
+            plugin.server.scheduler.runTaskTimerAsynchronously(plugin, task, delayTicks.coerceAtLeast(0L), intervalTicks.coerceAtLeast(1L))
+        }
     }
 }

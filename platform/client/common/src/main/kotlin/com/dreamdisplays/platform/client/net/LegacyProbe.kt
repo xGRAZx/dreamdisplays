@@ -1,9 +1,15 @@
 package com.dreamdisplays.platform.client.net
 
+import com.dreamdisplays.platform.client.utils.identifier
 import com.dreamdisplays.platform.client.Initializer
+//? if >=1.20.5 {
 import net.minecraft.network.RegistryFriendlyByteBuf
 import net.minecraft.network.codec.StreamCodec
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload
+//?} else
+/*import com.dreamdisplays.platform.client.net.compat.RegistryFriendlyByteBuf
+import com.dreamdisplays.platform.client.net.compat.StreamCodec
+import com.dreamdisplays.platform.client.net.compat.CustomPacketPayload*/
 //? if >=1.21.11 {
 import net.minecraft.resources.Identifier
 //?} else
@@ -15,11 +21,10 @@ import net.minecraft.resources.Identifier
  */
 object LegacyProbe {
     private fun <T : CustomPacketPayload> createType(path: String): CustomPacketPayload.Type<T> =
-        CustomPacketPayload.Type(Identifier.fromNamespaceAndPath(Initializer.MOD_ID, path))
+        CustomPacketPayload.Type(identifier(Initializer.MOD_ID, path))
 
     /** Serverbound v1 handshake; sent by every client so v1-only servers reveal themselves. */
     data class Version(val version: String) : CustomPacketPayload {
-        /** The packet type. */
         override fun type(): CustomPacketPayload.Type<out CustomPacketPayload> = PACKET_ID
 
         companion object {
@@ -33,7 +38,6 @@ object LegacyProbe {
 
     /** Clientbound v1 reply that only v1-only servers still send; its arrival marks the server outdated. */
     data class Premium(val premium: Boolean) : CustomPacketPayload {
-        /** The packet type. */
         override fun type(): CustomPacketPayload.Type<out CustomPacketPayload> = PACKET_ID
 
         companion object {

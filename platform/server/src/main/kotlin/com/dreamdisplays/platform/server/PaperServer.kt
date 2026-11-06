@@ -14,7 +14,10 @@ import com.dreamdisplays.platform.server.registrar.CommandRegistrar
 import com.dreamdisplays.platform.server.registrar.ListenerRegistrar
 import com.dreamdisplays.platform.server.storage.StorageBackend
 import io.github.arnodoelinger.platformweaver.PaperOnly
+//? if >=1.20.5 {
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents
+//?} else
+/*import com.dreamdisplays.platform.server.registrar.LegacyPaperCommands*/
 import org.bstats.bukkit.Metrics
 import org.bukkit.plugin.java.JavaPlugin
 import org.jspecify.annotations.NullMarked
@@ -30,21 +33,38 @@ class PaperServer : JavaPlugin() {
     /** Storage manager for persistent data. */
     lateinit var storage: StorageManager
 
-    /** Captures the plugin instance, loads config, and registers `Brigadier` commands before any worlds load. */
     override fun onLoad() {
         instance = this
+        moveOldDataFolder()
         Companion.config = Config(this)
+        //? if >=1.20.5 {
         lifecycleManager.registerEventHandler(LifecycleEvents.COMMANDS) { event ->
             event.registrar().register(CommandRegistrar.buildDisplayCommand(), "Main Dream Displays command")
         }
+        //?}
     }
 
-    /** Standard `Bukkit` hook, delegates to [doEnable] so reload commands can reuse the logic. */
+    /**
+     * The plugin was called DreamDisplays before it became AltDisplays, so its settings and screens are in
+     * `plugins/DreamDisplays`. Move that folder to the new name once, before anything reads it.
+     */
+    private fun moveOldDataFolder() {
+        val old = java.io.File(dataFolder.parentFile, OLD_NAME)
+        if (dataFolder.exists() || !old.isDirectory) return
+        if (old.renameTo(dataFolder)) {
+            Companion.logger.info("Moved the old plugins/$OLD_NAME folder to plugins/${dataFolder.name}.")
+        } else {
+            Companion.logger.warn("Could not move plugins/$OLD_NAME to plugins/${dataFolder.name}; move it by hand while the server is off.")
+        }
+    }
+
     override fun onEnable() {
+        //? if <1.20.5 {
+        LegacyPaperCommands.register(this, CommandRegistrar.buildDisplayCommand(), "Main Dream Displays command")
+        //?}
         doEnable()
     }
 
-    /** Disables the plugin, disconnecting from the database and tearing down resources. */
     override fun onDisable() {
         doDisable()
     }
@@ -86,7 +106,6 @@ class PaperServer : JavaPlugin() {
         PaperServerApi.start()
     }
 
-    /** Calls the Paper-only scheduler registrar without requiring its symbol in Fabric compilation. */
     private fun runRepeatingTasks() {
         val registrarClass = Class.forName("com.dreamdisplays.platform.server.registrar.SchedulerRegistrar")
         val registrar = registrarClass.getField("INSTANCE").get(null)
@@ -106,7 +125,6 @@ class PaperServer : JavaPlugin() {
         disableStep("close storage") { storage.disconnect() }
     }
 
-    /** Runs one teardown [step], logging and swallowing whatever it throws. */
     private fun disableStep(what: String, step: () -> Unit) {
         runCatching(step).onFailure { Companion.logger.error("Failed to $what while disabling.", it) }
     }
@@ -114,6 +132,9 @@ class PaperServer : JavaPlugin() {
     companion object {
         /** Logger. */
         val logger = LoggerFactory.getLogger(javaClass)
+
+        /** The plugin's name before it was renamed to AltDisplays. */
+        private const val OLD_NAME = "DreamDisplays"
 
         /** Mod config (`Fabric` server included). */
         lateinit var config: Config
@@ -126,7 +147,6 @@ class PaperServer : JavaPlugin() {
             instance.server.pluginManager.disablePlugin(instance)
         }
 
-        /** The plugin instance. */
         private lateinit var instance: PaperServer
     }
 }

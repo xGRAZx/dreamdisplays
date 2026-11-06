@@ -5,11 +5,11 @@ import com.dreamdisplays.api.media.model.DreamMediaException
 import java.util.function.Consumer
 
 /**
- * Handlers for the stages of a display's life; see [Display.lifecycle].
+ * Handlers for the stages of a display's life
  *
  * @since 1.10.x
+ * @see [Display.lifecycle]
  */
-@Unstable
 interface DisplayLifecycle {
     /** The video started playing (or resumed). */
     fun onPlaying(action: Consumer<DisplayState.Playing>)

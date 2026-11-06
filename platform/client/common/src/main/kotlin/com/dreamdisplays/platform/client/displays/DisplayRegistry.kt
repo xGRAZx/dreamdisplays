@@ -8,6 +8,7 @@ import com.dreamdisplays.core.services.keys.AudioAcousticsServices
 import com.dreamdisplays.core.runtime.getOrNull
 import com.dreamdisplays.shared.storage.DisplayData
 import com.dreamdisplays.core.services.DisplayStorage
+import com.dreamdisplays.platform.client.audiorange.AudioRangeClient
 import com.dreamdisplays.platform.client.core.DreamServices
 import com.dreamdisplays.platform.client.render.ConformingWorldMesh
 import com.dreamdisplays.platform.client.storage.ClientSettingsStore
@@ -23,10 +24,7 @@ object DisplayRegistry {
     /** Screens unregistered by the application, but still in memory. */
     val unloadedScreens = ConcurrentHashMap<UUID, DisplayData>()
 
-    /** Event listeners subscribed to display lifecycle events. */
     private val eventListeners = CopyOnWriteArrayList<(DisplayEvent) -> Unit>()
-
-    /** The display system, if available. */
     private val displaySystem: DisplaySystem? get() = DreamServices.registry.getOrNull<DisplaySystem>()
 
     /** Returns a snapshot of all currently registered screens. */
@@ -84,6 +82,7 @@ object DisplayRegistry {
         displayScreen.unregister()
         displaySystem?.removeDisplay(DisplayId(displayScreen.uuid))
         DreamServices.registry.getOrNull(AudioAcousticsServices.ACOUSTICS)?.unregisterSource(displayScreen.uuid)
+        AudioRangeClient.forget(displayScreen.uuid)
     }
 
     /** Unregisters all display screens. */
@@ -96,10 +95,7 @@ object DisplayRegistry {
         displaySystem?.clearDisplays()
     }
 
-    /** How long a carried-over display waits to be re-announced by the new server before it is dropped. */
     private const val RECONFIRM_GRACE_MS = 12_000L
-
-    /** Display id -> instant after which an unconfirmed carry-over is torn down. */
     private val awaitingReconfirm = ConcurrentHashMap<UUID, Long>()
 
     /**

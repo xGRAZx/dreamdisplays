@@ -22,7 +22,9 @@ import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.tree.CommandNode
 import com.mojang.brigadier.tree.LiteralCommandNode
 import io.github.arnodoelinger.platformweaver.PaperOnly
+//? if >=1.20.5 {
 import io.papermc.paper.command.brigadier.CommandSourceStack
+//?}
 import org.bukkit.entity.Player
 
 /**
@@ -308,18 +310,20 @@ object CommandRegistrar {
             ctx.source.sender,
             origin = ctx.source.location,
             id = StringArgumentType.getString(ctx, "id"),
-            serverScope = tryArg(ctx, "name", String::class.java),
-            players = tryArg(ctx, "players", String::class.java),
-            radiusBlocks = tryArg(ctx, "blocks", Double::class.javaObjectType)?.toDouble(),
-            radiusX = tryArg(ctx, "x", Double::class.javaObjectType)?.toDouble(),
-            radiusY = tryArg(ctx, "y", Double::class.javaObjectType)?.toDouble(),
-            radiusZ = tryArg(ctx, "z", Double::class.javaObjectType)?.toDouble(),
-            mode = mode,
-            forced = "forced" in nodeNames,
-            transientSession = "transient" in nodeNames,
-            volume = tryArg(ctx, "volume", Double::class.javaObjectType)?.let { (it.toFloat() / 200f) },
-            loop = "looped" in nodeNames,
-            quality = tryArg(ctx, "quality", String::class.java),
+            options = FullscreenStartOptions(
+                serverScope = tryArg(ctx, "name", String::class.java),
+                players = tryArg(ctx, "players", String::class.java),
+                radiusBlocks = tryArg(ctx, "blocks", Double::class.javaObjectType)?.toDouble(),
+                radiusX = tryArg(ctx, "x", Double::class.javaObjectType)?.toDouble(),
+                radiusY = tryArg(ctx, "y", Double::class.javaObjectType)?.toDouble(),
+                radiusZ = tryArg(ctx, "z", Double::class.javaObjectType)?.toDouble(),
+                mode = mode,
+                forced = "forced" in nodeNames,
+                transientSession = "transient" in nodeNames,
+                volume = tryArg(ctx, "volume", Double::class.javaObjectType)?.let { (it.toFloat() / 200f) },
+                loop = "looped" in nodeNames,
+                quality = tryArg(ctx, "quality", String::class.java),
+            ),
         )
     }
 }

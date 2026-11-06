@@ -83,10 +83,10 @@ class DisplayCustomDataTest {
     fun `the lifecycle reports data changes`() {
         system.recordDisplay(info(emptyMap()))
         val seen = ArrayList<Set<String>>()
-        display.watch { it.onDataChanged { keys -> seen += keys } }
+        display.events.lifecycle { it.onDataChanged { keys -> seen += keys } }
 
         system.recordDisplay(info(mapOf("a:one" to byteArrayOf(1))))
 
-        assertEquals(listOf(setOf("a:one")), seen)
+        assertEquals([setOf("a:one")], seen)
     }
 }

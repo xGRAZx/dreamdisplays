@@ -1,8 +1,5 @@
-@file:OptIn(Unstable::class)
-
 package com.dreamdisplays.api.media.source.url
 
-import com.dreamdisplays.api.Unstable
 import com.dreamdisplays.api.media.source.CustomMediaKind
 import com.dreamdisplays.api.media.source.CustomMediaUrls
 import com.dreamdisplays.api.media.source.MediaSource
@@ -79,7 +76,7 @@ class CustomMediaUrlsTest {
 
     @Test
     fun videoExtensionsAreProgressive() {
-        for (url in listOf("https://e.com/a.mp4", "https://e.com/a.webm", "https://e.com/a.mkv")) {
+        for (url in ["https://e.com/a.mp4", "https://e.com/a.webm", "https://e.com/a.mkv"]) {
             assertEquals(CustomMediaKind.PROGRESSIVE, CustomMediaUrls.classify(url), url)
         }
     }

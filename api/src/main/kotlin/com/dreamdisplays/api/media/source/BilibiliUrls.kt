@@ -1,6 +1,6 @@
 package com.dreamdisplays.api.media.source
 
-import com.dreamdisplays.api.Unstable
+import com.dreamdisplays.api.Experimental
 import java.util.*
 
 /**
@@ -8,34 +8,23 @@ import java.util.*
  *
  * @since 1.9.x
  */
-@Unstable
+@Experimental
 object BilibiliUrls {
-    /** A `BVID`: `BV` followed by 10 alphanumeric characters. */
     private val BVID_RE = Regex("^BV[0-9A-Za-z]{10}$")
-
-    /** A legacy `AVID`: `av` followed by digits. */
     private val AVID_RE = Regex("^[aA][vV](\\d+)$")
-
-    /** A bangumi episode id: `ep` followed by digits. */
     private val EP_ID_RE = Regex("^[eE][pP](\\d+)$")
-
-    /** A bangumi season id: `ss` followed by digits. */
     private val SEASON_ID_RE = Regex("^[sS][sS](\\d+)$")
 
     /** True when [url] points at a BIlibili VOD, live room, or short link. */
     fun isBilibili(url: String): Boolean = parse(url) != null
 
-    /**
-     * Parses [url] into a [com.dreamdisplays.api.media.source.MediaSource.Bilibili], or null if not recognizable. A `b23.tv` short link
-     * is recognized but left unresolved (no bvid / avid / roomId) — following its redirect needs a
-     * network call, which belongs in [com.dreamdisplays.media.source.bilibili.BilibiliApi], not here.
-     */
+    /** Parses [url] into a Bilibili, or `null` if not recognizable. */
     fun parse(url: String): MediaSource.Bilibili? {
-        val parsed = com.dreamdisplays.api.media.source.MediaHttpUrl.parse(url) ?: com.dreamdisplays.api.media.source.MediaHttpUrl.parse("https://${url.trim()}") ?: return null
+        val parsed = MediaHttpUrl.parse(url) ?: MediaHttpUrl.parse("https://${url.trim()}") ?: return null
         val host = parsed.uri.host?.lowercase(Locale.ROOT)?.removePrefix("www.")?.removePrefix("m.") ?: return null
 
         val normalized = parsed.value
-        val segments = parsed.uri.path?.split('/')?.filter { it.isNotBlank() } ?: emptyList()
+        val segments = parsed.uri.path?.split('/')?.filter { it.isNotBlank() } ?: []
 
         if (host == "b23.tv") {
             if (segments.isEmpty()) return null
@@ -74,7 +63,6 @@ object BilibiliUrls {
         return null
     }
 
-    /** Returns the value of the `p` (part index) query parameter in [rawQuery], or null when absent. */
     private fun partQueryParam(rawQuery: String?): String? =
         rawQuery?.split('&')?.firstNotNullOfOrNull { pair ->
             val idx = pair.indexOf('=')

@@ -1,12 +1,19 @@
 package com.dreamdisplays.platform.client.ui.widgets
 
+import com.dreamdisplays.platform.client.utils.emptyText
+//? if <1.20.2 {
+import com.dreamdisplays.platform.client.ui.blitSprite
+//?}
+import com.dreamdisplays.platform.client.utils.vanillaIdentifier
 import com.dreamdisplays.platform.client.ui.GuiGraphicsCompat
 import com.dreamdisplays.platform.client.ui.kit.UiWidget
 import com.dreamdisplays.platform.client.ui.widgets.ModeSlider.Companion.PENDING_TIMEOUT_NANOS
 //? if >=1.21.11 {
 import com.mojang.blaze3d.platform.cursor.CursorTypes
 //?}
+//? if >=1.19.4 {
 import net.minecraft.client.InputType
+//?}
 import net.minecraft.client.Minecraft
 //? if >=1.21.11 {
 import net.minecraft.client.input.MouseButtonEvent
@@ -30,7 +37,7 @@ class ModeSlider<T : Any>(
     private val enabledFor: (T) -> Boolean,
     private val label: (T) -> Component,
     private val onApply: (T) -> Unit,
-) : UiWidget(Component.empty()) {
+) : UiWidget(emptyText()) {
 
     var mode: T = initial
         private set
@@ -89,11 +96,6 @@ class ModeSlider<T : Any>(
         //?}
     }
 
-    /**
-     * Snaps to the mode at [mouseX]'s notch and applies it if it differs from the current one.
-     * Shared by click and drag so dragging tracks the cursor across notches exactly like a click
-     * would on each one, instead of being ignored mid-drag.
-     */
     private fun trySelect(mouseX: Double) {
         if (pendingMode != null) return
         val next = modeFromMouse(mouseX)
@@ -135,12 +137,14 @@ class ModeSlider<T : Any>(
         if (!focused) {
             sliderFocused = false
         } else {
+            //? if >=1.19.4 {
             val t = Minecraft.getInstance().lastInputType
             if (t == InputType.MOUSE || t == InputType.KEYBOARD_TAB) sliderFocused = true
+            //?} else
+            /*sliderFocused = true*/
         }
     }
 
-    /** Maps a click's x position to the mode whose notch it's closest to (mirrors the [draw] layout). */
     private fun modeFromMouse(mouseX: Double): T {
         val fraction = (mouseX - x) / (width - 8).toDouble()
         val idx = Math.round(fraction * (modes.size - 1)).toInt().coerceIn(0, modes.size - 1)
@@ -148,10 +152,10 @@ class ModeSlider<T : Any>(
     }
 
     companion object {
-        private val TRACK = Identifier.withDefaultNamespace("widget/slider")
-        private val TRACK_HIGHLIGHTED = Identifier.withDefaultNamespace("widget/slider_highlighted")
-        private val HANDLE = Identifier.withDefaultNamespace("widget/slider_handle")
-        private val HANDLE_HIGHLIGHTED = Identifier.withDefaultNamespace("widget/slider_handle_highlighted")
+        private val TRACK = vanillaIdentifier("widget/slider")
+        private val TRACK_HIGHLIGHTED = vanillaIdentifier("widget/slider_highlighted")
+        private val HANDLE = vanillaIdentifier("widget/slider_handle")
+        private val HANDLE_HIGHLIGHTED = vanillaIdentifier("widget/slider_handle_highlighted")
         private const val PENDING_TIMEOUT_NANOS = 2_000_000_000L
     }
 }

@@ -3,9 +3,9 @@ package com.dreamdisplays.api.internal
 import com.dreamdisplays.api.Display
 import com.dreamdisplays.api.DisplayBudget
 import com.dreamdisplays.api.Displays
+import com.dreamdisplays.api.display.event.Events
 import com.dreamdisplays.api.display.placement.DisplayPlacements
 import com.dreamdisplays.api.Session
-import com.dreamdisplays.api.Unstable
 
 import com.dreamdisplays.api.display.model.property.DisplayId
 import com.dreamdisplays.api.media.search.MediaSearchService
@@ -19,7 +19,6 @@ import com.dreamdisplays.api.watchparty.WatchPartyService
  *
  * @since 1.10.x
  */
-@Unstable
 interface ApiBackend {
     /** Registers and enables an addon. */
     fun registerAddon(addon: Any)
@@ -29,6 +28,9 @@ interface ApiBackend {
 
     /** All displays, as a view you can narrow and act on as a group. */
     val displays: Displays
+
+    /** Events of every display. */
+    val events: Events
 
     /** Starts a session that owns everything you subscribe to; close it when you are done. */
     fun session(name: String): Session

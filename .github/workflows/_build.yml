@@ -26,9 +26,13 @@ on:
         value: ${{ jobs.metadata.outputs.marketplace_publish_tasks }}
       required_native_platforms:
         value: ${{ jobs.metadata.outputs.required_native_platforms }}
+      build_stonecutter_versions:
+        value: ${{ jobs.metadata.outputs.build_stonecutter_versions }}
+      paper_build_version:
+        value: ${{ jobs.metadata.outputs.paper_build_version }}
 
 env:
-  BTBN_FFMPEG_TAG: autobuild-2026-08-31-13-27
+  BTBN_FFMPEG_TAG: autobuild-2026-10-28-19-47
 
 permissions:
   contents: read
@@ -88,9 +92,11 @@ jobs:
               raise SystemExit("No Java 21 Minecraft version >= 1.21.11 available to build the Paper jar")
           paper_build_version = paper_build_candidates[0]
 
+          props = versions_data["versions"]
           tasks = (
-              [{"kind": "fabric", "mc": version} for version in versions] +
-              [{"kind": "neoforge", "mc": version} for version in versions] +
+              [{"kind": "forge", "mc": version} for version in versions if "forge.version" in props[version]] +
+              [{"kind": "neoforge", "mc": version} for version in versions if "neoforge.version" in props[version]] +
+              [{"kind": "fabric", "mc": version} for version in versions if "fabric.api.version" in props[version]] +
               [{"kind": "paper", "mc": paper_build_version}] +
               [{"kind": "velocity", "mc": paper_build_version}] +
               [{"kind": "bungeecord", "mc": paper_build_version}]
@@ -120,7 +126,7 @@ jobs:
               },
               {
                   "platform": "macos-aarch64",
-                  "runner": "macos-14",
+                  "runner": "macos-15",
                   "target": "aarch64-apple-darwin",
                   "native_library": "libdreamdisplays_native.dylib",
                   "lav_library": "libdreamdisplays_lav.dylib",
@@ -517,7 +523,7 @@ jobs:
     needs:
       - metadata
       - build-natives
-    timeout-minutes: 15
+    timeout-minutes: 25
     permissions:
       contents: read
 
@@ -604,9 +610,24 @@ jobs:
 
       - name: Build loaders with Gradle
         run: |
+          tasks=$(python3 - <<'EOF'
+          import json
+
+          with open("versions.json") as f:
+              data = json.load(f)
+          props = data["versions"][data["active"]]
+          tasks = []
+          if "fabric.api.version" in props:
+              tasks.append(":platform:client:fabric:publishJar")
+          if "neoforge.version" in props:
+              tasks.append(":platform:client:neoforge:shadowJar")
+          if "forge.version" in props:
+              tasks.append(":platform:client:forge:publishJar")
+          print(" ".join(tasks))
+          EOF
+          )
           ./gradlew \
-            :platform:client:fabric:publishJar \
-            :platform:client:neoforge:shadowJar \
+            $tasks \
             --no-daemon \
             --parallel
         env:
@@ -669,7 +690,14 @@ jobs:
               for name in (native_name(platform), lav_name(platform), "licenses/ffmpeg-license.txt")
           ]
 
-          for loader in ("fabric", "neoforge"):
+          import json
+          with open("versions.json") as f:
+              props = json.load(f)["versions"][mc]
+          loaders = [
+              loader for loader, key in (("fabric", "fabric.api.version"), ("neoforge", "neoforge.version"), ("forge", "forge.version"))
+              if key in props
+          ]
+          for loader in loaders:
               jar = Path(f"build/libs/dreamdisplays-{loader}-{mc}-{version}.jar")
               if not jar.is_file():
                   raise SystemExit(f"Missing jar: {jar}")

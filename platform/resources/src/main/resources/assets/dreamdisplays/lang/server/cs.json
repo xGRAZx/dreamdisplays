@@ -44,7 +44,7 @@
   "displayDeleted": "&7D |&f Displej byl smazán!",
   "displayReported": "&7D |&f Displej byl nahlášen!",
   "reportNotConfigured": "&7D |&f Systém hlášení je na tomto serveru zakázán!",
-  "outdatedClient": "&7D |&f Tvoje verze Dream Displays je pro tento server příliš stará. Aktualizuj mod, abys mohl používat displeje!",
+  "outdatedClient": "&7D |&f Tvoje verze AltDisplays je pro tento server příliš stará. Aktualizuj mod, abys mohl používat displeje!",
   "newVersion": {
     "text": "",
     "extra": [
@@ -53,7 +53,7 @@
         "color": "#9D9D97"
       },
       {
-        "text": "Nová verze %s Dream Displays je k dispozici! Prosím ",
+        "text": "Nová verze %s AltDisplays je k dispozici! Prosím ",
         "color": "#FFFFFF"
       },
       {
@@ -62,7 +62,7 @@
         "underlined": true,
         "clickEvent": {
           "action": "open_url",
-          "value": "https://modrinth.com/plugin/dreamdisplays/versions"
+          "value": "https://github.com/xGRAZx/dreamdisplays/releases/latest"
         },
         "hoverEvent": {
           "action": "show_text",
@@ -75,9 +75,9 @@
       }
     ]
   },
-  "newPluginVersion": "&7D |&f Nová verze pluginu Dream Displays (%s) je k dispozici! Aktualizujte prosím plugin na serveru!",
-  "configReloaded": "&7D | &fDream Displays byl znovu načten!",
-  "configReloadFailed": "&7D |&f Nepodařilo se znovu načíst Dream Displays. Zkontrolujte prosím konzoli kvůli chybám",
+  "newPluginVersion": "&7D |&f Nová verze pluginu AltDisplays (%s) je k dispozici! Aktualizujte prosím plugin na serveru!",
+  "configReloaded": "&7D | &fAltDisplays byl znovu načten!",
+  "configReloadFailed": "&7D |&f Nepodařilo se znovu načíst AltDisplays. Zkontrolujte prosím konzoli kvůli chybám",
   "configReloadSummary": "&7D |&f Znovu načteno: konfigurace, jazykové zprávy, oprávnění příkazů",
   "noDisplaysFound": "&7D |&f Žádné displeje nenalezeny",
   "displayListHeader": "&7D |&f Displeje:",
@@ -101,16 +101,16 @@
         "color": "#FFFFFF"
       },
       {
-        "text": "Dream Displays",
+        "text": "AltDisplays",
         "color": "#5555FF",
         "underlined": true,
         "clickEvent": {
           "action": "open_url",
-          "value": "https://modrinth.com/plugin/dreamdisplays"
+          "value": "https://github.com/xGRAZx/dreamdisplays/releases/latest"
         },
         "hoverEvent": {
           "action": "show_text",
-          "value": "Klikněte pro stažení Dream Displays"
+          "value": "Klikněte pro stažení AltDisplays"
         }
       },
       {
@@ -127,20 +127,20 @@
         "color": "#9D9D97"
       },
       {
-        "text": "Mod Dream Displays je vyžadován pro zobrazení displejů na serveru. Prosím ",
+        "text": "Mod AltDisplays je vyžadován pro zobrazení displejů na serveru. Prosím ",
         "color": "#FFFFFF"
       },
       {
-        "text": "stáhněte Dream Displays",
+        "text": "stáhněte AltDisplays",
         "color": "#5555FF",
         "underlined": true,
         "clickEvent": {
           "action": "open_url",
-          "value": "https://modrinth.com/plugin/dreamdisplays"
+          "value": "https://github.com/xGRAZx/dreamdisplays/releases/latest"
         },
         "hoverEvent": {
           "action": "show_text",
-          "value": "Klikněte pro stažení Dream Displays"
+          "value": "Klikněte pro stažení AltDisplays"
         }
       },
       {
@@ -195,7 +195,7 @@
   "fullscreenNoDisplay": "&7D |&f Nebyl nalezen žádný displej a není načten žádný svět pro vysílání přes URL",
   "fullscreenPlayerOnly": "&7D |&f \"this\" a \"@s\" fungují jen tehdy, když příkaz spustí hráč",
   "fullscreenNetworkNoPlayers": "&7D |&f Síťové vysílání vyžaduje alespoň jednoho hráče online na tomto serveru",
-  "fullscreenNetworkNoProxy": "&7D |&f Tento server není připojen k proxy Dream Displays, zkontrolujte [proxy] v config.toml.",
+  "fullscreenNetworkNoProxy": "&7D |&f Tento server není připojen k proxy AltDisplays, zkontrolujte [proxy] v config.toml.",
   "fullscreenNetworkNotYetSupported": "&7D |&f Síťové celoobrazovkové vysílání (server <jméno>/<global>) zatím není implementováno.",
   "fullscreenNetworkUrlOnly": "&7D |&f Síťové celoobrazovkové vysílání podporuje pouze URL videa, ne existující id displeje",
   "fullscreenNetworkRadiusUnsupported": "&7D |&f radius není podporován spolu se server — platí pouze pro tento server, spusťte ho místo toho lokálně zde",

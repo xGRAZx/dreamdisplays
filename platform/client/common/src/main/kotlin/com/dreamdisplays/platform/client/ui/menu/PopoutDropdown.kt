@@ -1,5 +1,6 @@
 package com.dreamdisplays.platform.client.ui.menu
 
+import com.dreamdisplays.platform.client.utils.buttonClickSound
 import com.dreamdisplays.platform.client.ui.GuiGraphicsCompat
 import com.dreamdisplays.platform.client.ui.drawText
 import com.dreamdisplays.platform.client.ui.kit.*
@@ -22,17 +23,14 @@ class PopoutDropdown(
 ) {
     var visible: Boolean = false
 
-    /** Item labels and actions in display order. */
-    private val items: List<Pair<String, () -> Unit>> = listOf(
+    private val items: List<Pair<String, () -> Unit>> = [
         "Window" to onWindow,
         "In-game" to onPip,
         "Fullscreen" to onFullscreen,
         "Borderless" to onBorderless,
-    )
+    ]
 
     private var rect = UiRect(0, 0, WIDTH, ITEM_H * items.size)
-
-    /** Appear / disappear progress in 0..1, eased the same way as [com.dreamdisplays.platform.client.ui.PipOverlay]. */
     private var animProgress = 0f
     private var lastFrameNanos = 0L
 
@@ -124,7 +122,7 @@ class PopoutDropdown(
         visible = false
         if (!inside) return false
         val index = ((my - rect.y) / ITEM_H).coerceIn(0, items.size - 1)
-        val s = SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK.value(), 1.0f)
+        val s = SimpleSoundInstance.forUI(buttonClickSound(), 1.0f)
         Minecraft.getInstance().soundManager.play(s)
         items[index].second()
         return true
