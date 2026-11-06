@@ -371,7 +371,7 @@ private fun parseLanguageMessages(text: String): Map<String, Any> {
 private const val ALT_DOWNLOAD_URL = "https://github.com/xGRAZx/dreamdisplays/releases/latest"
 
 /**
- * AltDisplays texts that replace the upstream ones in every language, also over `lang/*.json` files a
+ * AltDisplays texts that replace the upstream ones in every language, also over the lang JSON files a
  * server extracted earlier: they point players at the AltDisplays mod on GitHub instead of upstream
  * Dream Displays on Modrinth.
  */
