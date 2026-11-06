@@ -266,7 +266,7 @@ def analyse(kind: str, log: str, booted: bool, code: int | None) -> list[str]:
         problems.append("dreamdisplays is not in the loaded mod list")
     if kind in ("fabric", "quilt", "neoforge") and "Storage connected" not in log:
         problems.append("the DreamDisplays server side never started (no 'Storage connected')")
-    if kind == "paper" and "Enabling DreamDisplays" not in log:
+    if kind == "paper" and "Enabling AltDisplays" not in log:
         problems.append("plugin was never enabled")
     return problems
 
