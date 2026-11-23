@@ -31,14 +31,14 @@ object AudioRangeProtocol {
      * release: the release workflow checks that the tag (`ar<BUILD>`) matches, and the plugin reminds
      * players whose mod reports a lower number.
      */
-    const val BUILD = 25
+    const val BUILD = 26
 
     /**
      * The AltDisplays release this mod and plugin belong to; must equal the `ALTDISPLAYS_VERSION` file
      * when releasing (the release workflow checks it). The plugin compares the version a player's mod
      * reports with the newest GitHub release to tell them about updates.
      */
-    const val ALT_VERSION = "1.3"
+    const val ALT_VERSION = "1.4"
 
     /** The GitHub page of the newest AltDisplays release, where players download the mod. */
     const val RELEASES_URL = "https://github.com/xGRAZx/dreamdisplays/releases/latest"

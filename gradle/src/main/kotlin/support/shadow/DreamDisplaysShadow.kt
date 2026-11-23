@@ -60,6 +60,7 @@ val dreamDisplaysShadedPackages = listOf(
     "org.tukaani.xz",
     "kotlin",
     "kotlinx",
+    "_COROUTINE",
     "org.jetbrains.annotations",
     "org.intellij.lang.annotations",
     "org.tomlj",

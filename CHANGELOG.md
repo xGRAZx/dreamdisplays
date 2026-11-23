@@ -1,11 +1,59 @@
+# 1.10.10 Release
+
+## Highlights
+
+- "Made for kids" and other restricted `YouTube` videos now play
+- `Bilibili` videos now play in 1080p without logging in
+- Fixed a crash on `Forge` when `Kotlin for Forge` is installed
+- Fixed a crash on `Linux` systems with an old `libva`
+
+## Client
+
+### Improvements
+
+- `yt-dlp` now gets a JavaScript runtime, which some `YouTube` videos need before they unlock their formats
+- `Bilibili` videos now unlock 1080p without logging in
+- Updated dependencies, including `Gradle` to 9.9.2
+
+### Fixes
+
+- Fixed "made for kids" `YouTube` videos never playing
+- "Made for kids" `YouTube` videos now prefer DASH streams over muxed HLS
+- Fixed an incompatibility with `Kotlin for Forge` that crashed the game on `Forge`
+- Fixed the game crashing on `Linux` when hardware decoding is enabled and the system `libva` lacks `vaMapBuffer2`;
+  VAAPI is now skipped there
+
+## Server
+
+No changes.
+
+# 1.10.9 Release
+
+## Highlights
+
+- Fixed crashes on `Fabric` and `Forge` for 1.18.2, 1.19.4, and 1.20.1 versions
+
+## Client
+
+### Improvements
+
+- Updated `Gradle` dependency to 9.9.0 and workflow runners
+
+### Fixes
+
+- Fixed `NoClassDefFoundError: java/lang/foreign/ValueLayout` error on `Fabric` and `Forge` for 1.18.2, 1.19.4, and
+  1.20.1 versions wich caused the game to crash on startup
+
+## Server
+
+No changes.
+
 # 1.10.8 Release
 
 ## Highlights
 
 - Improved selection logic
 - Marked API as stable
-
-## Server
 
 ## Client
 
