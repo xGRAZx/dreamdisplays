@@ -290,12 +290,12 @@ object VanillaCommandTree {
         val displays = DisplayManager.getDisplays().filterIsInstance<VanillaDisplayData>()
         val online = ctx.source.server.playerList.players
         return when (ListFilter.fromToken(filter)) {
-            ListFilter.MINE -> if (value != null) emptyList() else {
+            ListFilter.MINE -> if (value != null) [] else {
                 val player = ctx.source.entity as? ServerPlayer
                 DisplaySuggestions.pages(displays.count { player == null || it.ownerId == player.uuid })
             }
 
-            ListFilter.SYNC -> if (value != null) emptyList() else DisplaySuggestions.pages(displays.count { it.isSync })
+            ListFilter.SYNC -> if (value != null) [] else DisplaySuggestions.pages(displays.count { it.isSync })
             ListFilter.WORLD -> if (value != null) {
                 DisplaySuggestions.pages(displays.count { it.worldKey.endsWith(value, ignoreCase = true) })
             } else {
@@ -313,7 +313,7 @@ object VanillaCommandTree {
                     .map { Suggestion(it, "suggestOwner") }
             }
 
-            null -> emptyList()
+            null -> []
         }
     }
 
@@ -330,18 +330,20 @@ object VanillaCommandTree {
         return VanillaFullscreenCommand.start(
             ctx,
             id = StringArgumentType.getString(ctx, "id"),
-            serverScope = tryArg(ctx, "name", String::class.java),
-            players = tryArg(ctx, "players", String::class.java),
-            radiusBlocks = tryArg(ctx, "blocks", Double::class.javaObjectType),
-            radiusX = tryArg(ctx, "x", Double::class.javaObjectType),
-            radiusY = tryArg(ctx, "y", Double::class.javaObjectType),
-            radiusZ = tryArg(ctx, "z", Double::class.javaObjectType),
-            mode = mode,
-            forced = "forced" in nodeNames,
-            transientSession = "transient" in nodeNames,
-            volume = tryArg(ctx, "volume", Double::class.javaObjectType)?.let { (it.toFloat() / 200f) },
-            loop = "looped" in nodeNames,
-            quality = tryArg(ctx, "quality", String::class.java),
+            options = FullscreenStartOptions(
+                serverScope = tryArg(ctx, "name", String::class.java),
+                players = tryArg(ctx, "players", String::class.java),
+                radiusBlocks = tryArg(ctx, "blocks", Double::class.javaObjectType),
+                radiusX = tryArg(ctx, "x", Double::class.javaObjectType),
+                radiusY = tryArg(ctx, "y", Double::class.javaObjectType),
+                radiusZ = tryArg(ctx, "z", Double::class.javaObjectType),
+                mode = mode,
+                forced = "forced" in nodeNames,
+                transientSession = "transient" in nodeNames,
+                volume = tryArg(ctx, "volume", Double::class.javaObjectType)?.let { (it.toFloat() / 200f) },
+                loop = "looped" in nodeNames,
+                quality = tryArg(ctx, "quality", String::class.java),
+            ),
         )
     }
 

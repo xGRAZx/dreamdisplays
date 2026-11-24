@@ -44,7 +44,7 @@
   "displayDeleted": "&7D |&f Дисплей удалён!",
   "displayReported": "&7D |&f Жалоба на дисплей отправлена!",
   "reportNotConfigured": "&7D |&f Система жалоб не настроена на этом сервере!",
-  "outdatedClient": "&7D |&f Ваша версия Dream Displays слишком старая для этого сервера. Обновите мод, чтобы пользоваться дисплеями!",
+  "outdatedClient": "&7D |&f Ваша версия AltDisplays слишком старая для этого сервера. Обновите мод, чтобы пользоваться дисплеями!",
   "newVersion": {
     "text": "",
     "extra": [
@@ -53,7 +53,7 @@
         "color": "#9D9D97"
       },
       {
-        "text": "Доступна новая версия %s Dream Displays! Пожалуйста, ",
+        "text": "Доступна новая версия %s AltDisplays! Пожалуйста, ",
         "color": "#FFFFFF"
       },
       {
@@ -62,7 +62,7 @@
         "underlined": true,
         "clickEvent": {
           "action": "open_url",
-          "value": "https://modrinth.com/plugin/dreamdisplays/versions"
+          "value": "https://github.com/xGRAZx/dreamdisplays/releases/latest"
         },
         "hoverEvent": {
           "action": "show_text",
@@ -75,9 +75,9 @@
       }
     ]
   },
-  "newPluginVersion": "&7D |&f Доступна новая версия плагина Dream Displays (%s)! Пожалуйста, обновите плагин на сервере!",
-  "configReloaded": "&7D | &fDream Displays перезагружен!",
-  "configReloadFailed": "&7D |&f Не удалось перезагрузить Dream Displays. Пожалуйста, проверьте консоль на наличие ошибок",
+  "newPluginVersion": "&7D |&f Доступна новая версия плагина AltDisplays (%s)! Пожалуйста, обновите плагин на сервере!",
+  "configReloaded": "&7D | &fAltDisplays перезагружен!",
+  "configReloadFailed": "&7D |&f Не удалось перезагрузить AltDisplays. Пожалуйста, проверьте консоль на наличие ошибок",
   "configReloadSummary": "&7D |&f Перезагружено: конфиг, языковые сообщения, права команд",
   "noDisplaysFound": "&7D |&f Дисплеи не найдены",
   "displayListHeader": "&7D |&f Дисплеи:",
@@ -101,16 +101,16 @@
         "color": "#FFFFFF"
       },
       {
-        "text": "Dream Displays",
+        "text": "AltDisplays",
         "color": "#5555FF",
         "underlined": true,
         "clickEvent": {
           "action": "open_url",
-          "value": "https://modrinth.com/plugin/dreamdisplays"
+          "value": "https://github.com/xGRAZx/dreamdisplays/releases/latest"
         },
         "hoverEvent": {
           "action": "show_text",
-          "value": "Кликните, чтобы скачать Dream Displays"
+          "value": "Кликните, чтобы скачать AltDisplays"
         }
       },
       {
@@ -127,20 +127,20 @@
         "color": "#9D9D97"
       },
       {
-        "text": "Мод Dream Displays необходим для отображения дисплеев на сервере. Пожалуйста, ",
+        "text": "Мод AltDisplays необходим для отображения дисплеев на сервере. Пожалуйста, ",
         "color": "#FFFFFF"
       },
       {
-        "text": "скачайте Dream Displays",
+        "text": "скачайте AltDisplays",
         "color": "#5555FF",
         "underlined": true,
         "clickEvent": {
           "action": "open_url",
-          "value": "https://modrinth.com/plugin/dreamdisplays"
+          "value": "https://github.com/xGRAZx/dreamdisplays/releases/latest"
         },
         "hoverEvent": {
           "action": "show_text",
-          "value": "Кликните, чтобы скачать Dream Displays"
+          "value": "Кликните, чтобы скачать AltDisplays"
         }
       },
       {
@@ -195,7 +195,7 @@
   "fullscreenNoDisplay": "&7D |&f Дисплей не найден, и нет загруженного мира для трансляции по URL",
   "fullscreenPlayerOnly": "&7D |&f \"this\" и \"@s\" работают, только когда команду выполняет игрок",
   "fullscreenNetworkNoPlayers": "&7D |&f Для трансляции на сеть на этом сервере должен быть хотя бы один игрок онлайн",
-  "fullscreenNetworkNoProxy": "&7D |&f Этот сервер не подключён к прокси Dream Displays, проверьте [proxy] в config.toml.",
+  "fullscreenNetworkNoProxy": "&7D |&f Этот сервер не подключён к прокси AltDisplays, проверьте [proxy] в config.toml.",
   "fullscreenNetworkNotYetSupported": "&7D |&f Полноэкранная трансляция на всю сеть (server <имя>/<global>) пока не реализована",
   "fullscreenNetworkUrlOnly": "&7D |&f Полноэкранная трансляция на всю сеть поддерживает только URL видео, а не id существующего дисплея",
   "fullscreenNetworkRadiusUnsupported": "&7D |&f radius не поддерживается вместе с server — он действует только на этом сервере, запустите трансляцию с radius локально здесь",

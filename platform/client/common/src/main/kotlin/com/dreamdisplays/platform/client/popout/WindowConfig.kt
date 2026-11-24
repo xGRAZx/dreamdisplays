@@ -11,10 +11,7 @@ data class WindowConfig(
     val initialHeight: Int = 360,
 
     /** The title of the window. */
-    val title: String = "DreamDisplays",
-
-    /** Whether the window should always be on top. Default is false. */
-    val alwaysOnTop: Boolean = false,
+    val title: String = "AltDisplays",
 
     /** The backend to use for creating and rendering the window. Default is the detected default backend. */
     val backend: WindowBackend = WindowBackend.detectDefault(),

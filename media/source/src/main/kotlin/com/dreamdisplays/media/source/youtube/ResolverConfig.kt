@@ -9,32 +9,19 @@ import com.dreamdisplays.media.source.youtube.cookie.CookieSource
  */
 object ResolverConfig {
     interface Provider {
-        /** `yt-dlp` proxy URL, or blank for none. */
         val ytdlpProxy: String
-
-        /** Browser to import cookies from, or [CookieSource.NONE]. */
         val ytdlpCookieSource: CookieSource
+        val ytdlpJsRuntime: String get() = "auto"
     }
 
-    /** Default values until the host installs a real provider. */
     private object Defaults : Provider {
-        /** Default `yt-dlp` proxy URL, or blank for none. */
         override val ytdlpProxy: String = ""
-
-        /** Default browser to import cookies from, or [CookieSource.NONE]. */
         override val ytdlpCookieSource: CookieSource = CookieSource.NONE
     }
 
-    /**
-     * The host must set this to a real provider at startup, before any resolver is used. Until then
-     * the defaults apply.
-     */
     @Volatile
     var provider: Provider = Defaults
-
-    /** Current `yt-dlp` proxy URL, or blank for none. */
     val ytdlpProxy: String get() = provider.ytdlpProxy
-
-    /** Current browser to import cookies from, or [CookieSource.NONE]. */
     val ytdlpCookieSource: CookieSource get() = provider.ytdlpCookieSource
+    val ytdlpJsRuntime: String get() = provider.ytdlpJsRuntime
 }

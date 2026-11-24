@@ -1,7 +1,6 @@
 package com.dreamdisplays.api.display.data
 
 import com.dreamdisplays.api.CommandResult
-import com.dreamdisplays.api.Unstable
 
 /**
  * Extra data an addon keeps on a display. The server stores it with the display and sends it to every client that
@@ -13,7 +12,6 @@ import com.dreamdisplays.api.Unstable
  *
  * @since 1.10.x
  */
-@Unstable
 interface DisplayCustomData {
     /** Keys that currently have a value. */
     val keys: Set<String>
@@ -30,9 +28,12 @@ interface DisplayCustomData {
  *
  * @since 1.10.x
  */
-@Unstable
 interface MutableDisplayCustomData : DisplayCustomData {
-    /** Stores [value] under [key]. [CommandResult.REFUSED] when the key or the size is not allowed, nothing changes. */
+    /**
+     * Stores [value] under [key].
+     *
+     * [CommandResult.REFUSED] when the key or the size is not allowed, nothing changes.
+     */
     operator fun set(key: String, value: ByteArray): CommandResult
 
     /** Removes [key]. [CommandResult.OK] even when it was not there. */
@@ -47,7 +48,6 @@ interface MutableDisplayCustomData : DisplayCustomData {
  *
  * @since 1.10.x
  */
-@Unstable
 object DisplayCustomDataLimits {
     /** Most keys per display. */
     const val MAX_ENTRIES = 32

@@ -1,5 +1,6 @@
 package com.dreamdisplays.platform.client.render
 
+import com.dreamdisplays.platform.client.utils.identifier
 //? if >=1.21.11 {
 import net.minecraft.client.renderer.rendertype.RenderType
 //?} else
@@ -18,7 +19,6 @@ import java.util.*
 
 /** Owns the per-display GPU resources and their allocation / release lifecycle. Depending on the pipeline mode this is either one RGBA texture or three YUV planes. */
 class DisplayTextureResource(private val uuid: UUID) {
-    /** One complete set of GPU resources (either RGBA or the three YUV planes) plus its render types. */
     private class Allocation(
         val width: Int,
         val height: Int,
@@ -37,7 +37,6 @@ class DisplayTextureResource(private val uuid: UUID) {
         /** All texture-manager ids backing this allocation (for release). */
         val allIds: List<Identifier> get() = listOfNotNull(textureId) + planeIds
 
-        /** Set once [release] has run, so a deferred cancel racing a promote can never double-free. */
         private var released = false
 
         /** Closes the GPU textures and unregisters them from the texture manager. Render thread only; idempotent. */
@@ -62,14 +61,9 @@ class DisplayTextureResource(private val uuid: UUID) {
         }
     }
 
-    /** Allocated GPU resources, or null if none are allocated. */
     @Volatile
     private var current: Allocation? = null
 
-    /**
-     * Pending allocation, or null if none is staged. This is the new-resolution allocation that
-     * will be swapped in once the first frame has landed.
-     */
     @Volatile
     private var pending: Allocation? = null
 
@@ -136,16 +130,11 @@ class DisplayTextureResource(private val uuid: UUID) {
         height = h
     }
 
-    /**
-     * Texture size for a [blockWidth] x [blockHeight] screen at [qualityHeight] pixels tall, with
-     * both axes forced even.
-     */
     private fun textureDimensions(blockWidth: Int, blockHeight: Int, qualityHeight: Int): Pair<Int, Int> {
         val width = ((blockWidth / blockHeight.toDouble()) * qualityHeight).toInt()
         return width.toEvenDimension() to qualityHeight.toEvenDimension()
     }
 
-    /** Rounds down to an even size, never below 2. */
     private fun Int.toEvenDimension(): Int = (this and 1.inv()).coerceAtLeast(2)
 
     /**
@@ -199,14 +188,12 @@ class DisplayTextureResource(private val uuid: UUID) {
         Minecraft.getInstance().execute { if (p !== current) p.release() }
     }
 
-    /** Builds one allocation of [w] x [h] pixels in whichever pipeline mode is currently active. */
     private fun build(w: Int, h: Int): Allocation =
         //? if >=1.21.11 {
         if (DisplayYuvRenderTypes.active) buildYuv(w, h) else buildRgba(w, h)
     //?} else
     /*buildRgba(w, h)*/
 
-    /** Builds the legacy single RGBA texture fed by CPU-converted frames. */
     private fun buildRgba(w: Int, h: Int): Allocation {
         //? if >=1.21.11 {
         val newTexture = DynamicTexture(
@@ -215,7 +202,7 @@ class DisplayTextureResource(private val uuid: UUID) {
         )
         //?} else
         /*val newTexture = DynamicTexture(NativeImage(NativeImage.Format.RGBA, w, h, false))*/
-        val newId = Identifier.fromNamespaceAndPath(
+        val newId = identifier(
             Initializer.MOD_ID,
             "screen-main-texture-$uuid-${UUID.randomUUID()}",
         )
@@ -224,13 +211,12 @@ class DisplayTextureResource(private val uuid: UUID) {
         val rt = createRenderType(newId)
         return Allocation(
             width = w, height = h, texture = newTexture, textureId = newId,
-            yPlane = null, uPlane = null, vPlane = null, planeIds = emptyList(),
+            yPlane = null, uPlane = null, vPlane = null, planeIds = [],
             renderType = rt, fallbackRenderType = rt,
         )
     }
 
     //? if >=1.21.11 {
-    /** Builds the three I420 plane textures consumed by the YUV fragment shader. */
     private fun buildYuv(w: Int, h: Int): Allocation {
         val cw = (w + 1) / 2
         val ch = (h + 1) / 2
@@ -239,8 +225,8 @@ class DisplayTextureResource(private val uuid: UUID) {
         var y: AbstractTexture? = null
         var u: AbstractTexture? = null
         var v: AbstractTexture? = null
-        val ids = listOf("y" to (w to h), "u" to (cw to ch), "v" to (cw to ch)).map { (plane, dims) ->
-            val id = Identifier.fromNamespaceAndPath(Initializer.MOD_ID, "screen-$plane-plane-$suffix.")
+        val ids = ["y" to (w to h), "u" to (cw to ch), "v" to (cw to ch)].map { (plane, dims) ->
+            val id = identifier(Initializer.MOD_ID, "screen-$plane-plane-$suffix.")
             val tex =
                 DisplayYuvRenderTypes.createPlaneTexture("dreamdisplays $plane plane $uuid.", dims.first, dims.second)
             manager.register(id, tex)
@@ -285,7 +271,6 @@ class DisplayTextureResource(private val uuid: UUID) {
     }
 
     companion object {
-        /** Creates a custom unlit [RenderType] that samples texture [id] without block light / fog. */
         private fun createRenderType(id: Identifier): RenderType = DisplayUnlitRenderTypes.create("dream-displays", id)
     }
 }

@@ -1,19 +1,17 @@
 package com.dreamdisplays.shared.policy
 
-import com.dreamdisplays.api.Unstable
 import com.dreamdisplays.api.media.source.MediaPlatform
 import com.dreamdisplays.api.media.source.MediaSource
 import com.dreamdisplays.api.media.source.MediaHttpUrl
 import java.util.*
 
 /** Server-side policy for custom media URLs (non-platform links players paste). */
-@Unstable
 object CustomMediaPolicy {
     /** The `[custom_media]` config section, in the shape the check needs. */
     data class Settings(
         val enabled: Boolean = true,
-        val allowedHosts: List<String> = emptyList(),
-        val blockedHosts: List<String> = emptyList(),
+        val allowedHosts: List<String> = [],
+        val blockedHosts: List<String> = [],
     ) {
         companion object {
             val DEFAULT: Settings = Settings()

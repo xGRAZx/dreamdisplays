@@ -1,5 +1,6 @@
 package com.dreamdisplays.platform.client.render
 
+import com.dreamdisplays.platform.client.utils.identifier
 import com.dreamdisplays.platform.client.Initializer
 //? if >=1.21.11 {
 //? if <26.3 {
@@ -25,24 +26,22 @@ import net.minecraft.resources.ResourceLocation as Identifier*/
  */
 object DisplayUnlitRenderTypes {
     //? if >=1.21.11 {
-    /** Name of the texture sampler uniform in the display shader. */
     private const val SAMPLER_TEXTURE = "Sampler0"
 
-    /** Lazily-built unlit textured pipeline for display quads. */
     private val texturedPipeline: RenderPipeline by lazy {
         val pipeline = RenderPipelineCompat.createDisplayPipeline(
-            Identifier.fromNamespaceAndPath(Initializer.MOD_ID, "pipeline/display_unlit_textured"),
-            Identifier.fromNamespaceAndPath(Initializer.MOD_ID, "core/display_fog" +
+            identifier(Initializer.MOD_ID, "pipeline/display_unlit_textured"),
+            identifier(Initializer.MOD_ID, "core/display_fog" +
                 //? if >=26.3 {
                 "_rp"
                 //?} else
                 /*""*/),
-            Identifier.fromNamespaceAndPath(Initializer.MOD_ID, "core/display_fog" +
+            identifier(Initializer.MOD_ID, "core/display_fog" +
                 //? if >=26.3 {
                 "_rp"
                 //?} else
                 /*""*/),
-            listOf(SAMPLER_TEXTURE),
+            [SAMPLER_TEXTURE],
         )
         assignIrisTexturedProgram(pipeline)
         pipeline
@@ -58,7 +57,6 @@ object DisplayUnlitRenderTypes {
         )
     )
 
-    /** Registers [pipeline] with Iris's `TEXTURED` program so shader packs treat it correctly; no-op without Iris. */
     private fun assignIrisTexturedProgram(pipeline: RenderPipeline) {
         runCatching {
             val apiClass = Class.forName("net.irisshaders.iris.api.v0.IrisApi")
@@ -71,7 +69,9 @@ object DisplayUnlitRenderTypes {
         }
     }
     //?} else
-    /*fun create(name: String, id: Identifier): RenderType {
+    /*
+    //? if >=1.21.1 {
+    fun create(name: String, id: Identifier): RenderType {
         val state = RenderType.CompositeState.builder()
             .setShaderState(RenderStateShard.ShaderStateShard(java.util.function.Supplier {
                 GameRenderer.getPositionTexColorShader()
@@ -103,5 +103,33 @@ object DisplayUnlitRenderTypes {
             false,
             state,
         ) as RenderType
-    }*/
+    }
+    //?}
+    //? if <1.21.1 {
+    fun create(name: String, id: Identifier): RenderType {
+        val state = LegacyShards.texturedState(id)
+        val method = RenderType::class.java.declaredMethods.first { m ->
+            m.parameterCount == 7 && m.parameterTypes[0] == String::class.java &&
+                m.parameterTypes[1] == VertexFormat::class.java && m.parameterTypes[6].isAssignableFrom(state.javaClass)
+        }
+        return method.apply { isAccessible = true }.invoke(
+            null, name, DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS, 1536, false, false, state,
+        ) as RenderType
+    }
+
+    private object LegacyShards : RenderType(
+        "dreamdisplays_legacy_shards", DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS,
+        256, false, false, {}, {},
+    ) {
+        fun texturedState(id: Identifier): Any = CompositeState.builder()
+            .setShaderState(ShaderStateShard { GameRenderer.getPositionTexColorShader() })
+            .setTextureState(TextureStateShard(id, false, false))
+            .setTransparencyState(NO_TRANSPARENCY)
+            .setCullState(NO_CULL)
+            .setDepthTestState(LEQUAL_DEPTH_TEST)
+            .setLayeringState(POLYGON_OFFSET_LAYERING)
+            .createCompositeState(false)
+    }
+    //?}
+    */
 }

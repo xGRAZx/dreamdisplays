@@ -44,7 +44,7 @@
   "displayDeleted": "&7D |&f 显示屏已删除！",
   "displayReported": "&7D |&f 显示屏已被举报！",
   "reportNotConfigured": "&7D |&f 此服务器禁用了举报系统！",
-  "outdatedClient": "&7D |&f 你的 Dream Displays 版本过旧，无法在此服务器上使用。请更新模组以使用显示屏！",
+  "outdatedClient": "&7D |&f 你的 AltDisplays 版本过旧，无法在此服务器上使用。请更新模组以使用显示屏！",
   "newVersion": {
     "text": "",
     "extra": [
@@ -53,7 +53,7 @@
         "color": "#9D9D97"
       },
       {
-        "text": "Dream Displays 新版本 %s 已发布！请 ",
+        "text": "AltDisplays 新版本 %s 已发布！请 ",
         "color": "#FFFFFF"
       },
       {
@@ -62,7 +62,7 @@
         "underlined": true,
         "clickEvent": {
           "action": "open_url",
-          "value": "https://modrinth.com/plugin/dreamdisplays/versions"
+          "value": "https://github.com/xGRAZx/dreamdisplays/releases/latest"
         },
         "hoverEvent": {
           "action": "show_text",
@@ -75,9 +75,9 @@
       }
     ]
   },
-  "newPluginVersion": "&7D |&f Dream Displays 插件新版本 (%s) 可用！请更新服务器插件！",
-  "configReloaded": "&7D | &fDream Displays 已重载！",
-  "configReloadFailed": "&7D |&f Dream Displays 重载失败，请查看控制台了解错误",
+  "newPluginVersion": "&7D |&f AltDisplays 插件新版本 (%s) 可用！请更新服务器插件！",
+  "configReloaded": "&7D | &fAltDisplays 已重载！",
+  "configReloadFailed": "&7D |&f AltDisplays 重载失败，请查看控制台了解错误",
   "configReloadSummary": "&7D |&f 已重载：配置文件、语言消息、命令权限",
   "noDisplaysFound": "&7D |&f 未找到显示屏",
   "displayListHeader": "&7D |&f 显示屏列表：",
@@ -101,16 +101,16 @@
         "color": "#FFFFFF"
       },
       {
-        "text": "下载 Dream Displays",
+        "text": "下载 AltDisplays",
         "color": "#5555FF",
         "underlined": true,
         "clickEvent": {
           "action": "open_url",
-          "value": "https://modrinth.com/plugin/dreamdisplays"
+          "value": "https://github.com/xGRAZx/dreamdisplays/releases/latest"
         },
         "hoverEvent": {
           "action": "show_text",
-          "value": "点击下载 Dream Displays"
+          "value": "点击下载 AltDisplays"
         }
       },
       {
@@ -131,16 +131,16 @@
         "color": "#FFFFFF"
       },
       {
-        "text": "下载 Dream Displays",
+        "text": "下载 AltDisplays",
         "color": "#5555FF",
         "underlined": true,
         "clickEvent": {
           "action": "open_url",
-          "value": "https://modrinth.com/plugin/dreamdisplays"
+          "value": "https://github.com/xGRAZx/dreamdisplays/releases/latest"
         },
         "hoverEvent": {
           "action": "show_text",
-          "value": "点击下载 Dream Displays"
+          "value": "点击下载 AltDisplays"
         }
       },
       {
@@ -195,7 +195,7 @@
   "fullscreenNoDisplay": "&7D |&f 未找到显示屏，且没有加载的世界可用于承载 URL 广播",
   "fullscreenPlayerOnly": "&7D |&f \"this\" 和 \"@s\" 仅在由玩家执行命令时有效",
   "fullscreenNetworkNoPlayers": "&7D |&f 网络广播需要此服务器上至少有一名在线玩家",
-  "fullscreenNetworkNoProxy": "&7D |&f 此后端未连接到 Dream Displays 代理，请检查 config.toml 中的 [proxy] 设置",
+  "fullscreenNetworkNoProxy": "&7D |&f 此后端未连接到 AltDisplays 代理，请检查 config.toml 中的 [proxy] 设置",
   "fullscreenNetworkNotYetSupported": "&7D |&f 尚未支持网络范围的全屏（server <名称>/<global>）",
   "fullscreenNetworkUrlOnly": "&7D |&f 网络范围的全屏仅支持视频 URL，不支持现有的显示屏 ID",
   "fullscreenNetworkRadiusUnsupported": "&7D |&f radius 参数不支持与 server 一起使用 — 它仅适用于本服务器，请直接在本地启动",

@@ -1,18 +1,26 @@
 package com.dreamdisplays.platform.server.utils
 
+import com.dreamdisplays.platform.client.utils.literalText
+import com.dreamdisplays.platform.client.utils.translatableText
+import com.dreamdisplays.platform.client.utils.emptyText
 import com.dreamdisplays.platform.server.PaperServer
 import com.dreamdisplays.platform.server.VanillaServerState
 import com.dreamdisplays.util.toJsonString
 import io.github.arnodoelinger.platformweaver.PaperOnly
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.event.HoverEvent
-import net.kyori.adventure.text.serializer.json.JSONComponentSerializer
+import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
+import net.minecraft.ChatFormatting
+//? if >=1.19.3 {
 import net.minecraft.core.registries.BuiltInRegistries
+//?} else
+/*import net.minecraft.core.Registry as BuiltInRegistries*/
 //? if >=1.21.11 {
 import net.minecraft.data.AtlasIds
 //?}
 import net.minecraft.network.chat.MutableComponent
+import net.minecraft.network.chat.Style
 //? if >=1.21.11 {
 import net.minecraft.network.chat.contents.objects.AtlasSprite
 import net.minecraft.resources.Identifier
@@ -37,13 +45,11 @@ import net.minecraft.network.chat.contents.ObjectContents as NmsObjectContents
 
 /** Message utilities. Provides methods for sending localized and formatted messages to players and command senders. */
 object MessageUtil {
-    /** Legacy and JSON serializers for legacy color-coded strings. */
     @PaperOnly
     private val legacySerializer = LegacyComponentSerializer.legacyAmpersand()
 
-    /** Legacy and JSON serializers for `Adventure Components`. */
     @PaperOnly
-    private val jsonSerializer = JSONComponentSerializer.json()
+    private val jsonSerializer = GsonComponentSerializer.gson()
 
     /** Sends a localized message identified by [messageKey] to [sender]. */
     @PaperOnly
@@ -53,6 +59,12 @@ object MessageUtil {
         val message = if (args.isNotEmpty() && raw is String) raw.format(*args) else raw
         sendColoredMessage(sender, message)
     }
+
+    /** Sends the localized [message] to [sender]. */
+    @PaperOnly
+    @NullMarked
+    fun sendMessage(sender: CommandSender?, message: ServerMessage, vararg args: Any) =
+        sendMessage(sender, message.key, *args)
 
     /** Sends [message] to [sender], auto-detecting Component / legacy string / JSON forms. */
     @PaperOnly
@@ -85,10 +97,19 @@ object MessageUtil {
     fun messageFor(sender: CommandSender, key: String): String =
         PaperServer.config.getMessageForPlayer(sender as? Player, key) as? String ?: key
 
+    /** Returns the localized string for [message] in [sender]'s language. */
+    @PaperOnly
+    fun messageFor(sender: CommandSender, message: ServerMessage): String = messageFor(sender, message.key)
+
     /** Returns the localized string for [key], substituting `{0}`, `{1}`, ... with [values]. */
     @PaperOnly
     fun formatIndexed(sender: CommandSender, key: String, vararg values: String): String =
         applyPlaceholders(messageFor(sender, key), *values)
+
+    /** Returns the localized [message], substituting `{0}`, `{1}`, ... with [values]. */
+    @PaperOnly
+    fun formatIndexed(sender: CommandSender, message: ServerMessage, vararg values: String): String =
+        formatIndexed(sender, message.key, *values)
 
     /** Returns the localized string for [key], substituting `%s`/`%d`-style [values] via `String.format`. */
     @PaperOnly
@@ -96,6 +117,11 @@ object MessageUtil {
         val template = messageFor(sender, key)
         return runCatching { String.format(template, *values) }.getOrElse { template }
     }
+
+    /** Returns the localized [message], substituting `%s`/`%d`-style [values] via `String.format`. */
+    @PaperOnly
+    fun formatPrintf(sender: CommandSender, message: ServerMessage, vararg values: Any): String =
+        formatPrintf(sender, message.key, *values)
 
     /**
      * Sends a localized message to [sender], replacing `{0}`, `{1}` ... placeholders with
@@ -129,7 +155,6 @@ object MessageUtil {
         sender.sendMessage(builder.asComponent())
     }
 
-    /** Block items live in the `minecraft:blocks` atlas (`block/<name>`); pure items live in `minecraft:items` (`item/<name>`). */
     @PaperOnly
     private fun materialSpriteComponent(mat: Material): Component {
         if (ServerVersion.isAtLeast_1_21_11) return SpriteHoverRenderer.render(mat)
@@ -144,6 +169,10 @@ object MessageUtil {
         val message = if (args.isNotEmpty() && raw is String) raw.format(*args) else raw
         sendColoredMessage(player, message)
     }
+
+    /** Sends the localized [message] to [player]. */
+    fun sendMessage(player: ServerPlayer?, message: ServerMessage, vararg args: Any) =
+        sendMessage(player, message.key, *args)
 
     /**
      * Interpolates `%s` placeholders in a raw config [message] with [args], preserving its form:
@@ -162,15 +191,26 @@ object MessageUtil {
     fun messageFor(player: ServerPlayer?, key: String): String =
         VanillaServerState.config.getMessageForPlayer(player, key) as? String ?: key
 
+    /** Returns the localized string for [message] in [player]'s language. */
+    fun messageFor(player: ServerPlayer?, message: ServerMessage): String = messageFor(player, message.key)
+
     /** Returns the localized string for [key], substituting `{0}`, `{1}`, ... with [values]. */
     fun formatIndexed(player: ServerPlayer?, key: String, vararg values: String): String =
         applyPlaceholders(messageFor(player, key), *values)
+
+    /** Returns the localized [message], substituting `{0}`, `{1}`, ... with [values]. */
+    fun formatIndexed(player: ServerPlayer?, message: ServerMessage, vararg values: String): String =
+        formatIndexed(player, message.key, *values)
 
     /** Returns the localized string for [key], substituting `%s`/`%d`-style [values] via `String.format`. */
     fun formatPrintf(player: ServerPlayer?, key: String, vararg values: Any): String {
         val template = messageFor(player, key)
         return runCatching { String.format(template, *values) }.getOrElse { template }
     }
+
+    /** Returns the localized [message], substituting `%s`/`%d`-style [values] via `String.format`. */
+    fun formatPrintf(player: ServerPlayer?, message: ServerMessage, vararg values: Any): String =
+        formatPrintf(player, message.key, *values)
 
     /** Replaces `{0}`, `{1}`, ... placeholders in [template] with the matching value from [values]. */
     fun applyPlaceholders(template: String, vararg values: String): String {
@@ -185,7 +225,6 @@ object MessageUtil {
         player.sendSystemMessage(toNmsComponent(message))
     }
 
-    /** Converts an `Adventure` [component] to a `NMS Component`. */
     private fun toNmsComponent(message: Any): NmsComponent {
         return when (message) {
             is String -> parseAmpersandLegacy(message)
@@ -195,7 +234,6 @@ object MessageUtil {
         }
     }
 
-    /** Replace placeholders in a JSON component map with [args]. */
     private fun replacePlaceholders(value: Any?, args: Array<out String>, index: IntArray): Any? = when (value) {
         is String -> {
             var formatted: String = value
@@ -217,13 +255,12 @@ object MessageUtil {
         else -> value
     }
 
-    /** NMS component builder from a JSON component map. */
     private fun nmsComponentFromJsonValue(value: Any?): NmsComponent? = when (value) {
-        is String -> NmsComponent.literal(value)
+        is String -> literalText(value)
         is Map<*, *> -> {
             val root = when {
-                value.string("translate") != null -> NmsComponent.translatable(value.string("translate")!!)
-                else -> NmsComponent.literal(value.string("text") ?: "")
+                value.string("translate") != null -> translatableText(value.string("translate")!!)
+                else -> literalText(value.string("text") ?: "")
             }
             value.list("extra")?.forEach { child ->
                 nmsComponentFromJsonValue(child)?.let(root::append)
@@ -232,7 +269,7 @@ object MessageUtil {
         }
 
         is List<*> -> {
-            val root = NmsComponent.empty()
+            val root = emptyText()
             value.forEach { child -> nmsComponentFromJsonValue(child)?.let(root::append) }
             root
         }
@@ -240,11 +277,13 @@ object MessageUtil {
         else -> null
     }
 
-    /** Applies JSON component style from a JSON component map. */
     private fun MutableComponent.withJsonStyle(value: Map<*, *>): MutableComponent = withStyle { base ->
         var style = base
         value.string("color")?.let { color ->
+            //? if >=1.20.5 {
             val parsedColor = net.minecraft.network.chat.TextColor.parseColor(color).result().orElse(null)
+            //?} else
+            /*val parsedColor = net.minecraft.network.chat.TextColor.parseColor(color)*/
             if (parsedColor != null) style = style.withColor(parsedColor)
         }
         value.bool("bold")?.let { style = style.withBold(it) }
@@ -270,7 +309,7 @@ object MessageUtil {
         val hoverEvent = value.map("hoverEvent")
         if (hoverEvent?.string("action") == "show_text") {
             val hoverComponent = nmsComponentFromJsonValue(hoverEvent["value"])
-                ?: hoverEvent.string("value")?.let(NmsComponent::literal)
+                ?: hoverEvent.string("value")?.let(::literalText)
             hoverComponent?.let {
                 //? if >=1.21.11 {
                 style = style.withHoverEvent(net.minecraft.network.chat.HoverEvent.ShowText(it))
@@ -283,16 +322,12 @@ object MessageUtil {
         style
     }
 
-    /** Type-safe accessors for JSON component map values. */
     private fun Map<*, *>.string(key: String): String? = this[key] as? String
 
-    /** Type-safe accessors for JSON component map values. */
     private fun Map<*, *>.bool(key: String): Boolean? = this[key] as? Boolean
 
-    /** Type-safe accessors for JSON component map values. */
     private fun Map<*, *>.map(key: String): Map<*, *>? = this[key] as? Map<*, *>
 
-    /** Type-safe accessors for JSON component list values. */
     private fun Map<*, *>.list(key: String): List<*>? = this[key] as? List<*>
 
     /**
@@ -307,14 +342,17 @@ object MessageUtil {
             return
         }
         val pattern = Regex("""\{(\d+)}""")
-        val root = NmsComponent.literal("")
+        val root = literalText("")
         var lastIndex = 0
         for (match in pattern.findAll(rawMessage)) {
             val textBefore = rawMessage.substring(lastIndex, match.range.first)
             if (textBefore.isNotEmpty()) root.append(parseAmpersandLegacy(textBefore))
             val index = match.groupValues[1].toIntOrNull()
             if (index != null && index < materialKeys.size) {
+                //? if >=1.21.1 {
                 val itemId = Identifier.parse(materialKeys[index])
+                //?} else
+                /*val itemId = Identifier(materialKeys[index])*/
                 val spriteComponent =
                     //? if >=1.21.11 {
                     run {
@@ -335,7 +373,7 @@ object MessageUtil {
                         spriteComponent.withStyle { it.withHoverEvent(hoverEvent) }
                     }
                 //?} else
-                /*NmsComponent.literal(itemId.toString())*/
+                /*literalText(itemId.toString())*/
                 root.append(spriteComponent)
             }
             lastIndex = match.range.last + 1
@@ -345,7 +383,36 @@ object MessageUtil {
         player.sendSystemMessage(root)
     }
 
-    /** Converts `&` color codes to a plain NMS text component (strips formatting on `Fabric`/`NeoForge`). */
-    private fun parseAmpersandLegacy(text: String): NmsComponent =
-        NmsComponent.literal(text.replace(Regex("&[0-9a-fA-FrRlLoOnNmMkK]"), ""))
+    internal fun parseAmpersandLegacy(text: String): NmsComponent {
+        val root = literalText("")
+        val segment = StringBuilder()
+        var style = Style.EMPTY
+        fun flush() {
+            if (segment.isEmpty()) return
+            root.append(literalText(segment.toString()).withStyle(style))
+            segment.clear()
+        }
+
+        var i = 0
+        while (i < text.length) {
+            val format = if (text[i] == '&' && i + 1 < text.length) ChatFormatting.getByCode(text[i + 1].lowercaseChar()) else null
+            if (format == null) {
+                segment.append(text[i++])
+                continue
+            }
+            flush()
+            style = style.applyLegacyFormat(format)
+            i += 2
+        }
+        flush()
+        return root
+    }
 }
+
+/** Sends this message to [target]; shorthand for [MessageUtil.sendMessage]. */
+@PaperOnly
+@NullMarked
+fun ServerMessage.sendTo(target: CommandSender?, vararg args: Any) = MessageUtil.sendMessage(target, this, *args)
+
+/** Sends this message to [target]; shorthand for [MessageUtil.sendMessage]. */
+fun ServerMessage.sendTo(target: ServerPlayer?, vararg args: Any) = MessageUtil.sendMessage(target, this, *args)

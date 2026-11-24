@@ -4,7 +4,14 @@ import com.dreamdisplays.platform.client.ui.GuiGraphicsCompat
 //? if >=26 {
 import net.minecraft.client.gui.GuiGraphicsExtractor
 //?} else
-/*import net.minecraft.client.gui.GuiGraphics*/
+/*
+//? if >=1.20 {
+import net.minecraft.client.gui.GuiGraphics
+//?}
+//? if <1.20 {
+import com.dreamdisplays.platform.client.ui.compat.GuiGraphics
+//?}
+*/
 import net.minecraft.client.gui.screens.Screen
 //? if >=1.21.11 {
 import net.minecraft.client.input.MouseButtonEvent
@@ -53,18 +60,12 @@ abstract class UiScreenBase(title: Component) : Screen(title) {
     /** Maps a virtual Y coordinate back to a real screen Y (e.g. for tooltips, which render unscaled). */
     protected fun toRealY(virtualY: Int): Int = (virtualY * uiScale).toInt()
 
-    /** Computes the downscale factor needed to fit [minContentSize] into the current real window. */
     private fun computeScale(): Double {
         val (mw, mh) = minContentSize() ?: return 1.0
         if (mw <= 0 || mh <= 0) return 1.0
         return minOf(1.0, width.toDouble() / mw, height.toDouble() / mh)
     }
 
-    /**
-     * Runs the per-frame state sync and renders [drawScreen], applying the auto-scale transform when the
-     * window is too small. While scaled, [width]/[height] hold the virtual canvas size so all
-     * screen-relative layout and the background fill map to the full real window.
-     */
     private fun renderScaled(g: GuiGraphicsCompat, mouseX: Int, mouseY: Int, delta: Float) {
         uiScale = computeScale()
         uiWidgets.forEach { it.syncState() }
@@ -97,7 +98,6 @@ abstract class UiScreenBase(title: Component) : Screen(title) {
     }
 
     //? if >=1.21.11 {
-    /** Converts a real-space mouse event into virtual space; returns it unchanged when not scaling. */
     private fun toVirtual(event: MouseButtonEvent): MouseButtonEvent =
         if (uiScale >= 1.0) event
         else MouseButtonEvent(event.x() / uiScale, event.y() / uiScale, event.buttonInfo())
@@ -157,11 +157,18 @@ abstract class UiScreenBase(title: Component) : Screen(title) {
     protected open fun onMouseScrolled(mouseX: Double, mouseY: Double, scrollX: Double, scrollY: Double): Boolean =
         false
 
+    //? if >=1.20.2 {
     final override fun mouseScrolled(mouseX: Double, mouseY: Double, scrollX: Double, scrollY: Double): Boolean {
         val mx = mouseX / uiScale
         val my = mouseY / uiScale
         return onMouseScrolled(mx, my, scrollX, scrollY) || super.mouseScrolled(mx, my, scrollX, scrollY)
     }
+    //?} else
+    /*final override fun mouseScrolled(mouseX: Double, mouseY: Double, delta: Double): Boolean {
+        val mx = mouseX / uiScale
+        val my = mouseY / uiScale
+        return onMouseScrolled(mx, my, 0.0, delta) || super.mouseScrolled(mx, my, delta)
+    }*/
 
     final override fun mouseMoved(mouseX: Double, mouseY: Double) =
         super.mouseMoved(mouseX / uiScale, mouseY / uiScale)
@@ -177,17 +184,38 @@ abstract class UiScreenBase(title: Component) : Screen(title) {
     protected fun drawChildren(g: GuiGraphicsCompat, mouseX: Int, mouseY: Int, delta: Float) =
         super.extractRenderState(g, mouseX, mouseY, delta)
     //?} else
-    /*final override fun render(g: GuiGraphics, mouseX: Int, mouseY: Int, delta: Float) =
+    /*
+    //? if >=1.20 {
+    final override fun render(g: GuiGraphics, mouseX: Int, mouseY: Int, delta: Float) =
         renderScaled(g, mouseX, mouseY, delta)
+    //?}
+    //? if <1.20 {
+    final override fun render(pose: com.mojang.blaze3d.vertex.PoseStack, mouseX: Int, mouseY: Int, delta: Float) =
+        renderScaled(GuiGraphics(pose), mouseX, mouseY, delta)
+    //?}
 
     // Draws the standard translucent screen background.
+    //? if >=1.20.2 {
     protected fun drawScreenBackground(g: GuiGraphicsCompat) = renderTransparentBackground(g)
+    //?}
+    //? if >=1.20 <1.20.2 {
+    protected fun drawScreenBackground(g: GuiGraphicsCompat) = renderBackground(g)
+    //?}
+    //? if <1.20 {
+    protected fun drawScreenBackground(g: GuiGraphicsCompat) = renderBackground(g.pose())
+    //?}
 
     // Renders all registered child widgets (the vanilla `super` pass).
+    //? if >=1.20 {
     protected fun drawChildren(g: GuiGraphicsCompat, mouseX: Int, mouseY: Int, delta: Float) =
         super.render(g, mouseX, mouseY, delta)
+    //?}
+    //? if <1.20 {
+    protected fun drawChildren(g: GuiGraphicsCompat, mouseX: Int, mouseY: Int, delta: Float) =
+        super.render(g.pose(), mouseX, mouseY, delta)
+    //?}
 
-    //? if <1.21.11 {
+    //? if >=1.20.2 <1.21.11 {
     // 1.21.1 strange background remover
     override fun renderBackground(g: GuiGraphics, mouseX: Int, mouseY: Int, delta: Float) {}
     //?}

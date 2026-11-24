@@ -1,14 +1,16 @@
 package com.dreamdisplays.platform.server.listeners
 
 import com.dreamdisplays.platform.server.ModLoaderOnly
+//? if >=1.21.1 {
 //? if >=26 {
 import net.neoforged.neoforge.event.level.block.BreakBlockEvent as NeoForgeBreakEvent
 //?} else
 /*import net.neoforged.neoforge.event.level.BlockEvent.BreakEvent as NeoForgeBreakEvent*/
+//?}
 import com.dreamdisplays.platform.server.managers.DisplayManager
 import com.dreamdisplays.platform.server.managers.PlayerManager
-import com.dreamdisplays.platform.server.managers.SelectionManager
-import com.dreamdisplays.platform.server.utils.MessageUtil
+import com.dreamdisplays.platform.server.utils.ServerMessage
+import com.dreamdisplays.platform.server.utils.sendTo
 import com.dreamdisplays.platform.server.utils.RegionUtil
 import io.github.arnodoelinger.platformweaver.FabricOnly
 import io.github.arnodoelinger.platformweaver.NeoForgeOnly
@@ -17,8 +19,10 @@ import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents
 import net.minecraft.core.BlockPos
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
+//? if >=1.21.1 {
 import net.neoforged.bus.api.SubscribeEvent
 import net.neoforged.neoforge.event.level.ExplosionEvent
+//?}
 import org.bukkit.Location
 import org.bukkit.block.Block
 import org.bukkit.event.Cancellable
@@ -45,7 +49,7 @@ class ProtectionListener : Listener {
     fun onBlockBreak(event: BlockBreakEvent) {
         val loc = event.block.location
         if (DisplayManager.isContains(loc) != null && PlayerManager.getVersion(event.player) == null) {
-            MessageUtil.sendMessage(event.player, "displayBlockBreak")
+            ServerMessage.DISPLAY_BLOCK_BREAK.sendTo(event.player)
         }
         cancelIfProtected(loc, event)
     }
@@ -98,26 +102,17 @@ class ProtectionListener : Listener {
     @EventHandler
     fun onPistonRetract(event: BlockPistonRetractEvent) = handlePiston(event.blocks, event)
 
-    /**
-     * Handles piston movements, checking if the piston is moving blocks protected by displays.
-     */
     private fun handlePiston(blocks: List<Block>, event: Cancellable) {
         if (event.isCancelled) return
         if (blocks.any { isLocationProtected(it.location) }) event.isCancelled = true
     }
 
-    /**
-     * Handles piston movements, checking if the piston is moving blocks protected by displays.
-     */
     private fun cancelIfProtected(loc: Location, event: Cancellable) {
         if (isLocationProtected(loc)) event.isCancelled = true
     }
 
-    /**
-     * Checks if a location is in a protected area, considering both existing displays and current selections.
-     */
     private fun isLocationProtected(loc: Location): Boolean =
-        DisplayManager.isContains(loc) != null || SelectionManager.isLocationSelected(loc)
+        DisplayManager.isContains(loc) != null
 }
 
 /**
@@ -128,11 +123,10 @@ class ProtectionListener : Listener {
 object VanillaProtectionListener {
     /** Returns true if the break at [pos] in [worldKey] should be cancelled; warns [player] if known. */
     fun handleBreak(worldKey: String, pos: BlockPos, player: ServerPlayer?): Boolean {
-        val isProtected = DisplayManager.isContains(worldKey, pos) != null ||
-                SelectionManager.isLocationSelected(pos, worldKey)
+        val isProtected = DisplayManager.isContains(worldKey, pos) != null
 
         if (isProtected && player != null && PlayerManager.getVersion(player.uuid) == null) {
-            MessageUtil.sendMessage(player, "displayBlockBreak")
+            ServerMessage.DISPLAY_BLOCK_BREAK.sendTo(player)
         }
         return isProtected
     }
@@ -140,10 +134,12 @@ object VanillaProtectionListener {
     /** Removes every protected position in [worldKey] from an explosion's destruction list. */
     fun filterExplosionBlocks(worldKey: String, positions: MutableList<BlockPos>) {
         positions.removeIf { pos ->
-            DisplayManager.isContains(worldKey, pos) != null || SelectionManager.isLocationSelected(pos, worldKey)
+            DisplayManager.isContains(worldKey, pos) != null
         }
     }
 }
+
+// Forge adapter lives in :platform:client:forge
 
 /** `Fabric` event adapter for [VanillaProtectionListener]. */
 @FabricOnly
@@ -160,6 +156,7 @@ object FabricProtectionListener {
     }
 }
 
+//? if >=1.21.1 {
 /** `NeoForge` event adapter for [VanillaProtectionListener]. */
 @NeoForgeOnly
 object NeoForgeProtectionListener {
@@ -185,3 +182,4 @@ object NeoForgeProtectionListener {
         VanillaProtectionListener.filterExplosionBlocks(worldKey, event.affectedBlocks)
     }
 }
+//?}

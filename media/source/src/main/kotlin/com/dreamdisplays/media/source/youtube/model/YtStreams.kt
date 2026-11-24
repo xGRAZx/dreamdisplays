@@ -5,10 +5,7 @@ package com.dreamdisplays.media.source.youtube.model
  * path and the `yt-dlp` fallback so the "is this result good enough?" decision stays in one place.
  */
 internal object YtStreams {
-    /** Distinct heights, or a single track at least this tall, needed to count as a real quality choice. */
     private const val LADDER_MIN_DISTINCT_HEIGHTS = 2
-
-    /** A single track must be at least this tall to count as a real quality choice. */
     private const val LADDER_MIN_SINGLE_HEIGHT = 720
 
     /** The distinct video heights present across [streams], ignoring audio-only tracks. */
@@ -30,6 +27,12 @@ internal object YtStreams {
     }
 
     fun hasAudio(streams: List<YtStream>): Boolean = streams.any { it.hasAudio() }
+
+    fun preferDirect(streams: List<YtStream>): List<YtStream> {
+        if (streams.any { it.isLive }) return streams
+        val direct = streams.filterNot { it.protocol?.contains("m3u8") == true }
+        return if (direct.any { it.hasVideo() } && hasAudio(direct)) direct else streams
+    }
 
     fun usable(streams: List<YtStream>): Boolean = streams.isNotEmpty() && hasAudio(streams)
 }

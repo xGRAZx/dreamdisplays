@@ -12,7 +12,14 @@ import net.minecraft.client.gui.screens.PauseScreen
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
 //?} else
-/*import net.minecraft.client.gui.GuiGraphics*/
+/*
+//? if >=1.20 {
+import net.minecraft.client.gui.GuiGraphics
+//?}
+//? if <1.20 {
+import com.dreamdisplays.platform.client.ui.compat.GuiGraphics
+//?}
+*/
 
 /**
  * Coordinator for the fullscreen video overlay. At most one overlay is live at a time (a newly
@@ -20,10 +27,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
  * Rendered before [PipOverlayManager] in the HUD hooks so PiP stays on top.
  */
 object FullscreenOverlayManager {
-    /** Live plus still-fading-out overlays, in open order. */
     private val overlays = mutableListOf<FullscreenOverlay>()
-
-    /** Tracks whether a GUI screen was open last tick, for Esc (pause-screen) edge detection. */
     private var screenWasOpen = false
 
     /** The single non-closing overlay, or null when none is active. */

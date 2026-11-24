@@ -9,8 +9,10 @@ import com.dreamdisplays.api.internal.ServerBackend
 import com.dreamdisplays.api.internal.ServerHolder
 import com.dreamdisplays.api.playback.model.DisplayAccess
 import com.dreamdisplays.api.playback.model.PlaybackMode
+import com.dreamdisplays.api.server.DisplayVeto
 import com.dreamdisplays.api.server.ServerDisplay
 import com.dreamdisplays.api.server.ServerDisplayEvent
+import com.dreamdisplays.api.server.ServerEvents
 import com.dreamdisplays.api.server.ServerDisplays
 import com.dreamdisplays.core.addon.AddonManager
 import com.dreamdisplays.core.addon.ServerAddonBinder
@@ -22,6 +24,7 @@ import com.dreamdisplays.shared.policy.MediaUrlPolicy
 import org.slf4j.LoggerFactory
 import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.Consumer
 import java.util.function.Predicate
 
@@ -41,7 +44,8 @@ internal object ServerApiHost {
 abstract class BaseServerBackend : ServerBackend {
     private val logger = LoggerFactory.getLogger(BaseServerBackend::class.java)
     private val listeners = CopyOnWriteArrayList<Consumer<ServerDisplayEvent>>()
-    private val addons = AddonManager(AddonSide.SERVER, listOf(ServerAddonBinder { listener -> on(listener) }))
+    private val vetoListeners = CopyOnWriteArrayList<Consumer<DisplayVeto>>()
+    private val addons = AddonManager(AddonSide.SERVER, [ServerAddonBinder { listener -> on(listener) }])
 
     internal abstract fun wrap(data: DisplayData): ServerDisplay
 
@@ -50,7 +54,39 @@ abstract class BaseServerBackend : ServerBackend {
         return AutoCloseable { listeners -= listener }
     }
 
+    override fun onVeto(listener: Consumer<DisplayVeto>): AutoCloseable {
+        vetoListeners += listener
+        return AutoCloseable { vetoListeners -= listener }
+    }
+
     override fun registerAddon(addon: Any) = addons.register(addon)
+
+    /**
+     * Asks listeners whether [actor] may set [url] on [data]. `null` means allowed,
+     * otherwise the reason (may be empty).
+     */
+    internal fun askSetUrl(data: DisplayData, url: String, lang: String, actor: UUID?): String? =
+        ask(data) { DisplayVeto.SetUrl(wrap(data), url, lang, actor) }
+
+    /**
+     * Asks listeners whether the not yet registered [data] may be created. `null` means allowed,
+     * otherwise the reason.
+     */
+    internal fun askCreate(data: DisplayData, actor: UUID?): String? =
+        ask(data) { DisplayVeto.Create(wrap(data), actor) }
+
+    /** Asks listeners whether [actor] may remove [data]. `null` means allowed, otherwise the reason. */
+    internal fun askDelete(data: DisplayData, actor: UUID?): String? =
+        ask(data) { DisplayVeto.Delete(wrap(data), actor) }
+
+    private inline fun ask(data: DisplayData, veto: () -> DisplayVeto): String? {
+        if (vetoListeners.isEmpty() || data.virtual) return null
+        val built = veto()
+        vetoListeners.forEach { listener ->
+            runCatching { listener.accept(built) }.onFailure { logger.error("A display veto subscriber threw.", it) }
+        }
+        return built.denial
+    }
 
     /**
      * Makes the API available and enables registered addons.
@@ -120,8 +156,10 @@ abstract class ServerDisplayBase internal constructor(
         if (CustomMediaGate.refusalKey(url, customMediaSettings(), hasPermission = true) != null) {
             return CommandResult.REFUSED
         }
+        val sanitizedLang = MediaUrlPolicy.sanitizeLang(lang)
+        if (backend.askSetUrl(data, url, sanitizedLang, null) != null) return CommandResult.REFUSED
         data.url = url
-        data.lang = MediaUrlPolicy.sanitizeLang(lang)
+        data.lang = sanitizedLang
         save()
         broadcast()
         TimelineManager.onVideoChanged(data)
@@ -139,6 +177,7 @@ abstract class ServerDisplayBase internal constructor(
 
     override fun delete(): CommandResult {
         if (!isAlive) return CommandResult.STALE
+        if (backend.askDelete(data, null) != null) return CommandResult.REFUSED
         doDelete()
         return CommandResult.OK
     }
@@ -154,6 +193,19 @@ abstract class ServerDisplayBase internal constructor(
 
     override fun moveTo(x1: Int, y1: Int, z1: Int, x2: Int, y2: Int, z2: Int, facing: DisplayFacing): CommandResult =
         moveTo(world, x1, y1, z1, x2, y2, z2, facing)
+
+    override val events: ServerEvents = object : ServerEvents {
+        override fun <T : ServerDisplayEvent> on(type: Class<T>, listener: Consumer<T>): AutoCloseable {
+            val closed = AtomicBoolean(false)
+            lateinit var upstream: AutoCloseable
+            upstream = backend.on { event ->
+                if (closed.get() || event.display.id != id) return@on
+                if (type.isInstance(event)) listener.accept(type.cast(event))
+                if (event is ServerDisplayEvent.Removed && closed.compareAndSet(false, true)) upstream.close()
+            }
+            return AutoCloseable { if (closed.compareAndSet(false, true)) upstream.close() }
+        }
+    }
 
     override val customData: MutableDisplayCustomData = object : MutableDisplayCustomData {
         override val keys: Set<String> get() = data.customData.keys.toSet()

@@ -21,7 +21,14 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
 //?} else
-/*import net.minecraft.client.gui.GuiGraphics*/
+/*
+//? if >=1.20 {
+import net.minecraft.client.gui.GuiGraphics
+//?}
+//? if <1.20 {
+import com.dreamdisplays.platform.client.ui.compat.GuiGraphics
+//?}
+*/
 import org.slf4j.LoggerFactory
 
 /** Main mod initializer. */
@@ -29,7 +36,6 @@ object Initializer {
     /** The mod identifier, used for channels, resources, and registration. */
     const val MOD_ID: String = "dreamdisplays"
 
-    /** Logger for startup and lifecycle messages. */
     private val logger = LoggerFactory.getLogger(javaClass)
 
     /** Called once during mod startup; initializes config, `yt-dlp`, `FFmpeg`, disk cache, and the focuser thread. */

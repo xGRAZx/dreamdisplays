@@ -3,7 +3,8 @@ package com.dreamdisplays.platform.server.listeners
 import com.dreamdisplays.platform.server.*
 import com.dreamdisplays.platform.server.managers.SelectionManager
 import com.dreamdisplays.platform.server.managers.SelectionVisualizer
-import com.dreamdisplays.platform.server.utils.MessageUtil
+import com.dreamdisplays.platform.server.utils.ServerMessage
+import com.dreamdisplays.platform.server.utils.sendTo
 import com.dreamdisplays.platform.server.utils.RegionUtil
 import io.github.arnodoelinger.platformweaver.FabricOnly
 import io.github.arnodoelinger.platformweaver.NeoForgeOnly
@@ -12,19 +13,26 @@ import net.fabricmc.fabric.api.event.player.AttackBlockCallback
 import net.fabricmc.fabric.api.event.player.UseBlockCallback
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
+//? if >=1.19.3 {
 import net.minecraft.core.registries.BuiltInRegistries
+//?} else
+/*import net.minecraft.core.Registry as BuiltInRegistries*/
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
+//? if >=1.21.1 {
 import net.neoforged.bus.api.SubscribeEvent
+//?}
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.block.Action
 import org.bukkit.event.block.Action.*
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.inventory.EquipmentSlot
+//? if >=1.21.1 {
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent as NeoForgePlayerInteractEvent
+//?}
 
 /**
  * Listener for player interactions to manage selection points for display creation. Players can set selection points via item interaction.
@@ -46,7 +54,7 @@ class SelectionListener(plugin: PaperServer) : Listener {
         if (player.isSneaking && event.action.isRightClick) {
             if (SelectionManager.selectionPoints.containsKey(player.uniqueId)) {
                 SelectionManager.resetSelection(player)
-                MessageUtil.sendMessage(player, "selectionClear")
+                ServerMessage.SELECTION_CLEAR.sendTo(player)
             }
             return
         }
@@ -63,7 +71,7 @@ class SelectionListener(plugin: PaperServer) : Listener {
         }
     }
 
-    private val Action.isRightClick get() = this in listOf(RIGHT_CLICK_AIR, RIGHT_CLICK_BLOCK)
+    private val Action.isRightClick get() = this in [RIGHT_CLICK_AIR, RIGHT_CLICK_BLOCK]
 }
 
 /**
@@ -102,7 +110,7 @@ object VanillaSelectionListener {
         if (player.isShiftKeyDown) {
             if (SelectionManager.selectionPoints.containsKey(player.uuid)) {
                 SelectionManager.resetSelection(player)
-                MessageUtil.sendMessage(player, "selectionClear")
+                ServerMessage.SELECTION_CLEAR.sendTo(player)
             }
             return true
         }
@@ -115,6 +123,8 @@ object VanillaSelectionListener {
         return true
     }
 }
+
+// Forge adapter lives in :platform:client:forge
 
 /** `Fabric` event adapter for [VanillaSelectionListener]. */
 @FabricOnly
@@ -141,6 +151,7 @@ object FabricSelectionListener {
     }
 }
 
+//? if >=1.21.1 {
 /** `NeoForge` event adapter for [VanillaSelectionListener]. */
 @NeoForgeOnly
 object NeoForgeSelectionListener {
@@ -166,3 +177,4 @@ object NeoForgeSelectionListener {
         if (VanillaSelectionListener.handleRightClick(player, world, event.pos)) event.setCanceled(true)
     }
 }
+//?}

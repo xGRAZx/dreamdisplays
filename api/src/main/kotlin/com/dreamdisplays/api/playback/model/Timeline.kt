@@ -1,22 +1,15 @@
 package com.dreamdisplays.api.playback.model
 
-import com.dreamdisplays.api.Unstable
-
 /**
  * Authoritative playback clock; [positionMs] is position as of [serverTimeMs], advances while running.
  *
  * @since 1.8.x
  */
-@Unstable
 data class Timeline(
     val positionMs: Long,
     val serverTimeMs: Long,
     val paused: Boolean,
-
-    /** Total media duration in ms; 0 means live / unknown. */
     val durationMs: Long = 0,
-
-    /** When true, [positionAt] wraps around [durationMs] forever (Broadcast). */
     val loop: Boolean = false,
 ) {
     /** Position at server-time [nowMs]: advances when running, wraps by [durationMs] when [loop]. */

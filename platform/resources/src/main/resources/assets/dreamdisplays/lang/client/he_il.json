@@ -1,5 +1,5 @@
 {
-  "dreamdisplays.ui.title": "Dream Displays",
+  "dreamdisplays.ui.title": "AltDisplays",
   "dreamdisplays.mode.local": "מקומי",
   "dreamdisplays.mode.synced": "מסונכרן",
   "dreamdisplays.mode.watch_party": "צפייה משותפת",
@@ -102,8 +102,8 @@
   "dreamdisplays.access.everyone": "כולם",
   "dreamdisplays.access.region": "חברי האזור",
   "dreamdisplays.access.locked": "נעול",
-  "dreamdisplays.message.outdated_server": "גרסת Dream Displays בשרת זה ישנה מדי, ולכן לא ניתן להשתמש כאן במסכים. בקש ממנהלי השרת לעדכן אותה",
-  "dreamdisplays.config.title": "הגדרות Dream Displays",
+  "dreamdisplays.message.outdated_server": "גרסת AltDisplays בשרת זה ישנה מדי, ולכן לא ניתן להשתמש כאן במסכים. בקש ממנהלי השרת לעדכן אותה",
+  "dreamdisplays.config.title": "הגדרות AltDisplays",
   "dreamdisplays.config.category.general": "כללי",
   "dreamdisplays.config.value.auto": "אוטומטי",
   "dreamdisplays.config.value.chunks": "%s צ'אנקים",

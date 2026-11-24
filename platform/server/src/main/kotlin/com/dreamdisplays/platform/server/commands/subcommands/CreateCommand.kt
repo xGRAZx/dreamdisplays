@@ -1,5 +1,7 @@
 package com.dreamdisplays.platform.server.commands.subcommands
 
+import com.dreamdisplays.platform.server.api.ServerApiHost
+import com.dreamdisplays.platform.client.utils.literalText
 import com.dreamdisplays.shared.geometry.SurfaceCensus
 import com.dreamdisplays.shared.geometry.SurfaceRole
 import com.dreamdisplays.api.playback.model.DisplayAccess
@@ -10,6 +12,8 @@ import com.dreamdisplays.platform.server.managers.DisplayManager
 import com.dreamdisplays.platform.server.managers.SelectionManager
 import com.dreamdisplays.platform.server.meta.ServerCoroutines
 import com.dreamdisplays.platform.server.utils.MessageUtil
+import com.dreamdisplays.platform.server.utils.ServerMessage
+import com.dreamdisplays.platform.server.utils.sendTo
 import com.dreamdisplays.platform.server.utils.RegionUtil
 import com.dreamdisplays.platform.server.utils.VanillaPermissions
 import com.dreamdisplays.platform.server.utils.WorldGuardRegions
@@ -19,7 +23,10 @@ import io.github.arnodoelinger.platformweaver.PaperOnly
 import kotlinx.coroutines.launch
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.core.BlockPos
+//? if >=1.19.3 {
 import net.minecraft.core.registries.BuiltInRegistries
+//?} else
+/*import net.minecraft.core.Registry as BuiltInRegistries*/
 import net.minecraft.network.chat.Component
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
@@ -38,7 +45,6 @@ class CreateCommand : SubCommand {
     override val permission = PaperServer.config.permissions.create
     override val playerOnly = true
 
-    /** Command execution logic. */
     override fun execute(sender: CommandSender, args: Array<String?>) {
         val player = (sender as? Player) ?: return
 
@@ -71,7 +77,7 @@ class CreateCommand : SubCommand {
         ) ?: return
 
         if (DisplayManager.isOverlaps(sel)) {
-            MessageUtil.sendMessage(player, "displayOverlap")
+            ServerMessage.DISPLAY_OVERLAP.sendTo(player)
             return
         }
 
@@ -79,7 +85,7 @@ class CreateCommand : SubCommand {
         if (maxDisplays > 0 && !player.hasPermission(PaperServer.config.permissions.createBypass) &&
             DisplayManager.countOwnedBy(player.uniqueId) >= maxDisplays
         ) {
-            MessageUtil.sendMessage(player, "displayLimitReached", maxDisplays)
+            ServerMessage.DISPLAY_LIMIT_REACHED.sendTo(player, maxDisplays)
             return
         }
 
@@ -91,16 +97,16 @@ class CreateCommand : SubCommand {
         ) {
             displayData.access = DisplayAccess.REGION
         }
+        ServerApiHost.current?.askCreate(displayData, player.uniqueId)?.let { reason ->
+            if (reason.isNotEmpty()) MessageUtil.sendColoredMessage(player, reason)
+            return
+        }
         SelectionManager.selectionPoints.remove(player.uniqueId)
 
         DisplayManager.register(displayData)
-        MessageUtil.sendMessage(player, "successfulCreation")
+        ServerMessage.SUCCESSFUL_CREATION.sendTo(player)
     }
 
-    /**
-     * Validates the player's current selection, enforces overlap and Y-range limits, and
-     * registers the resulting display.
-     */
     private fun validate(
         sel: PaperSelectionData,
         sendError: (String, Array<out Any>) -> Unit,
@@ -121,6 +127,10 @@ class CreateCommand : SubCommand {
         val region = RegionUtil.calculateRegion(pos1, pos2)
         val face = sel.getFace()
         val (width, height, depth) = region.screenExtents(abs(face.modX), abs(face.modY), abs(face.modZ))
+        if (isOversized(width, height, depth, PaperServer.config.settings.maxWidth, PaperServer.config.settings.maxHeight)) {
+            sendError("structureTooLarge", arrayOf(PaperServer.config.settings.maxWidth, PaperServer.config.settings.maxHeight))
+            return null
+        }
         val surface = PaperSurfaces.of(PaperServer.config.settings.baseMaterial)
         val world = pos1.world
         val census = if (world == null) {
@@ -164,7 +174,7 @@ object VanillaCreateCommand {
     /** Command execution logic. */
     fun execute(ctx: CommandContext<CommandSourceStack>): Int {
         val player = ctx.source.entity as? ServerPlayer
-            ?: return ctx.source.sendFailure(Component.literal("This command can only be used by a player.")).let { 0 }
+            ?: return ctx.source.sendFailure(literalText("This command can only be used by a player.")).let { 0 }
 
         val sel = SelectionManager.selectionPoints[player.uuid] as? VanillaSelectionData
             ?: return MessageUtil.sendMessageWithMaterials(
@@ -197,7 +207,7 @@ object VanillaCreateCommand {
         ) ?: return 0
 
         if (DisplayManager.isOverlaps(sel)) {
-            MessageUtil.sendMessage(player, "displayOverlap")
+            ServerMessage.DISPLAY_OVERLAP.sendTo(player)
             return 0
         }
 
@@ -210,11 +220,15 @@ object VanillaCreateCommand {
             ) &&
             DisplayManager.countOwnedBy(player.uuid) >= maxDisplays
         ) {
-            MessageUtil.sendMessage(player, "displayLimitReached", maxDisplays)
+            ServerMessage.DISPLAY_LIMIT_REACHED.sendTo(player, maxDisplays)
             return 0
         }
 
         val displayData = sel.generateDisplayData(player.uuid)
+        ServerApiHost.current?.askCreate(displayData, player.uuid)?.let { reason ->
+            if (reason.isNotEmpty()) MessageUtil.sendColoredMessage(player, reason)
+            return 0
+        }
         SelectionManager.selectionPoints.remove(player.uuid)
 
         DisplayManager.register(displayData)
@@ -223,14 +237,10 @@ object VanillaCreateCommand {
         val receivers = DisplayManager.getReceivers(displayData, ctx.source.server)
         VanillaPacketUtil.sendDisplayInfo(receivers, displayData)
 
-        MessageUtil.sendMessage(player, "successfulCreation")
+        ServerMessage.SUCCESSFUL_CREATION.sendTo(player)
         return 1
     }
 
-    /**
-     * Validates the player's current selection, enforces overlap and Y-range limits, and
-     * registers the resulting display.
-     */
     private fun validate(
         sel: VanillaSelectionData,
         server: MinecraftServer,
@@ -258,6 +268,12 @@ object VanillaCreateCommand {
 
         val facing = sel.facing
         val (width, height, depth) = region.screenExtents(abs(facing.stepX), abs(facing.stepY), abs(facing.stepZ))
+        val maxWidth = VanillaServerState.config.settings.maxWidth
+        val maxHeight = VanillaServerState.config.settings.maxHeight
+        if (isOversized(width, height, depth, maxWidth, maxHeight)) {
+            sendError("structureTooLarge", arrayOf(maxWidth, maxHeight))
+            return null
+        }
         val surface = VanillaSurfaces.of(VanillaServerState.config.settings.baseMaterialId)
         var census = SurfaceCensus()
         for (x in region.minX..region.maxX) {
@@ -293,12 +309,9 @@ object VanillaCreateCommand {
     }
 }
 
-/**
- * Validates the region.
- *
- * @return whether the accepted screen wraps slabs and stairs,
- * or `null` when the selection is rejected and [sendError] has already been called.
- */
+private fun isOversized(width: Int, height: Int, depth: Int, maxWidth: Int, maxHeight: Int): Boolean =
+    width > maxWidth || height > maxHeight || depth > maxOf(maxWidth, maxHeight)
+
 private fun validateRegion(
     minY: Int,
     maxY: Int,

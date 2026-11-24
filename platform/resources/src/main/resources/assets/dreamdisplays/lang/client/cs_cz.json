@@ -1,5 +1,5 @@
 {
-  "dreamdisplays.ui.title": "Dream Displays",
+  "dreamdisplays.ui.title": "AltDisplays",
   "dreamdisplays.mode.local": "Místní",
   "dreamdisplays.mode.synced": "Synchronizovaný",
   "dreamdisplays.mode.watch_party": "Společné sledování",
@@ -102,8 +102,8 @@
   "dreamdisplays.access.everyone": "Všichni",
   "dreamdisplays.access.region": "Členové regionu",
   "dreamdisplays.access.locked": "Uzamčeno",
-  "dreamdisplays.message.outdated_server": "Verze Dream Displays na tomto serveru je příliš stará, takže zde nelze používat displeje. Požádej administrátory serveru o aktualizaci",
-  "dreamdisplays.config.title": "Nastavení Dream Displays",
+  "dreamdisplays.message.outdated_server": "Verze AltDisplays na tomto serveru je příliš stará, takže zde nelze používat displeje. Požádej administrátory serveru o aktualizaci",
+  "dreamdisplays.config.title": "Nastavení AltDisplays",
   "dreamdisplays.config.category.general": "Obecné",
   "dreamdisplays.config.value.auto": "Auto",
   "dreamdisplays.config.value.chunks": "%s chunků",

@@ -1,17 +1,15 @@
 package com.dreamdisplays.api.media.player
 
-import com.dreamdisplays.api.Unstable
 import com.dreamdisplays.api.media.model.DreamMediaException
 import com.dreamdisplays.api.media.model.VideoQuality
 import com.dreamdisplays.api.playback.model.PlaybackMode
 import java.util.*
 
 /**
- * Display abstraction for [com.dreamdisplays.media.player.MediaPlayer]; platform-side implementation.
+ * Display abstraction for media player; platform-side implementation.
  *
  * @since 1.8.x
  */
-@Unstable
 interface PlaybackHost {
     /** Stable identifier of this display, used for log labels. */
     val uuid: UUID

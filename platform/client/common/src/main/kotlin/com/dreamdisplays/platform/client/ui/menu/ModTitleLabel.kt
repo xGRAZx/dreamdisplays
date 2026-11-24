@@ -1,10 +1,11 @@
 package com.dreamdisplays.platform.client.ui.menu
 
+import com.dreamdisplays.platform.client.utils.literalText
 import com.dreamdisplays.platform.client.ui.GuiGraphicsCompat
 import com.dreamdisplays.platform.client.ui.drawText
 import com.dreamdisplays.platform.client.ui.kit.UiRect
 import com.dreamdisplays.platform.client.ui.kit.UiTheme
-import com.dreamdisplays.util.GeneralUtil
+import com.dreamdisplays.shared.audiorange.AudioRangeProtocol
 import com.dreamdisplays.util.UpdateCheck
 import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
@@ -24,8 +25,8 @@ class ModTitleLabel {
     /** Draws the label (and the update arrow when applicable) at ([x], [y]). */
     fun draw(g: GuiGraphicsCompat, x: Int, y: Int) {
         val font = Minecraft.getInstance().font
-        val name = Component.literal("Dream Displays")
-        val ver = Component.literal(" ${GeneralUtil.getPrettyModVersion()}")
+        val name = literalText("AltDisplays")
+        val ver = literalText(" ${AudioRangeProtocol.ALT_VERSION}")
             .withStyle(Style.EMPTY.withColor(UiTheme.ACCENT_VERSION))
         val label = name.copy().append(ver)
         g.drawText(font, label, x, y, UiTheme.TEXT_PRIMARY, true)
@@ -39,7 +40,7 @@ class ModTitleLabel {
                 val p = t / 0.25f
                 arrowYOffset = (-sin(p * Math.PI) * 3.0).toInt()
             }
-            val arrow = Component.literal(" ▲")
+            val arrow = literalText(" ▲")
                 .withStyle(Style.EMPTY.withColor(UiTheme.ACCENT_UPDATE))
             g.drawText(font, arrow, x + textW, y + arrowYOffset, UiTheme.TEXT_PRIMARY, true)
             totalW += font.width(arrow)
@@ -47,18 +48,14 @@ class ModTitleLabel {
         hoverArea = UiRect(x, y - 1, totalW, font.lineHeight + 2)
     }
 
-    /** Opens the Modrinth versions page if an update arrow is shown and the click hits the label. */
+    /** Opens the AltDisplays release page if an update arrow is shown and the click hits the label. */
     fun handleClick(mx: Int, my: Int): Boolean {
         if (!UpdateCheck.shouldShowArrow()) return false
         if (hoverArea?.contains(mx, my) != true) return false
         try {
-            Desktop.getDesktop().browse(URI.create(MODRINTH_URL))
+            Desktop.getDesktop().browse(URI.create(AudioRangeProtocol.RELEASES_URL))
         } catch (_: Exception) {
         }
         return true
-    }
-
-    companion object {
-        private const val MODRINTH_URL = "https://modrinth.com/plugin/dreamdisplays/versions"
     }
 }

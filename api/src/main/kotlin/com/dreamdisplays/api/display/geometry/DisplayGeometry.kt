@@ -1,21 +1,19 @@
 package com.dreamdisplays.api.display.geometry
 
-import com.dreamdisplays.api.Unstable
 import com.dreamdisplays.api.display.model.property.DisplayFacing
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
 
 /**
- * The block-space math `Dream Displays` itself uses for its displays: how far a point is from a display, whether it is
- * inside one, where a display's center and axes are.
+ * The block-space math `Dream Displays` itself uses for its displays: how far a point is from
+ * a display, whether it is inside one, where a display's center and axes are.
  *
- * A display is described by its minimum corner block, its width and height in blocks, its facing and its depth (blocks
- * it extends away from the wall, `1` for a flat display).
+ * A display is described by its minimum corner block, its width and height in blocks, its facing
+ * and its depth (blocks it extends away from the wall, `1` for a flat display).
  *
- * @since 1.10.2
+ * @since 1.10.x
  */
-@Unstable
 object DisplayGeometry {
     private inline fun <T> withBounds(
         minX: Int, minY: Int, minZ: Int, width: Int, height: Int, facing: DisplayFacing, depth: Int,

@@ -1,13 +1,13 @@
 package com.dreamdisplays.api.media.audio
 
-import com.dreamdisplays.api.Unstable
+import com.dreamdisplays.api.Experimental
 
 /**
  * Latest known geometry and mix state for one registered source, published every game tick.
  *
  * @since 1.9.x
  */
-@Unstable
+@Experimental
 data class SourceAcousticState(
     /** Source plane */
     val plane: SourcePlane,
@@ -29,4 +29,10 @@ data class SourceAcousticState(
 
     /** Latest raytraced acoustic space (occlusion + reverb); defaults to OPEN_AIR. */
     val environment: AcousticEnvironment = AcousticEnvironment.OPEN_AIR,
+
+    /**
+     * Extra gain from server-set limits (the audiorange sound range and wool / carpet absorption),
+     * `0.0`..`1.0`; applied on top of distance attenuation and smoothed like it.
+     */
+    val rangeGain: Float = 1f,
 )

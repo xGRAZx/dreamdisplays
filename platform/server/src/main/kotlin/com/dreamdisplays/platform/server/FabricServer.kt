@@ -17,7 +17,9 @@ import com.dreamdisplays.platform.server.utils.net.VanillaServerPacketHandler
 import io.github.arnodoelinger.platformweaver.FabricOnly
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
+//? if >=1.20.5 {
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry
+//?}
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.server.MinecraftServer
 import net.minecraft.world.level.storage.LevelResource
@@ -30,12 +32,6 @@ import java.io.File
  */
 @FabricOnly
 class Server : ModInitializer {
-    /**
-     * Initializes the server-side mod. It registers all necessary event listeners, packet handlers, and commands.
-     * Also sets up repeating tasks for display updates and update checking.
-     *
-     * This method is called by the `Fabric` loader when the mod is loaded.
-     */
     override fun onInitialize() {
         logger.info("Initializing server-side mod...")
 
@@ -45,7 +41,9 @@ class Server : ModInitializer {
         VanillaServerState.platformName = "fabric"
         VanillaNetworking.adapter = FabricNetworkingAdapter
 
+        //? if >=1.20.5 {
         registerPayloadTypes()
+        //?}
 
         VanillaServerPacketHandler.registerReceivers()
         FabricV2Networking.registerReceivers()
@@ -74,7 +72,7 @@ class Server : ModInitializer {
         logger.info("Server-side initialization complete.")
     }
 
-    /** Registers all custom payload types for clientbound and serverbound play channels. */
+    //? if >=1.20.5 {
     private fun registerPayloadTypes() {
         runCatching {
             payloadRegistry("clientboundPlay", "playS2C").let { clientbound ->
@@ -108,6 +106,7 @@ class Server : ModInitializer {
         }
         register.invoke(registry, packetId, packetCodec)
     }
+    //?}
 
     companion object {
         /** Logger. */
@@ -131,7 +130,6 @@ class Server : ModInitializer {
         val server: MinecraftServer?; get() = VanillaServerState.server
         val storage: StorageManager?; get() = VanillaServerState.storage
 
-        /** Copies the pre-1.8.1 global `SQLite DB` into [worldDataDir] on first startup for this world. */
         @Deprecated("Scheduled for removal in 2.0.0")
         // TODO: scheduled for removal in 2.0.0
         private fun migrateGlobalDb(worldDataDir: File) {

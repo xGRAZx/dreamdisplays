@@ -39,3 +39,5 @@ native/target/
 
 # Stonecutter
 versions/
+__pycache__/
+*.pyc

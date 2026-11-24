@@ -20,6 +20,8 @@ import com.dreamdisplays.platform.server.playback.FullscreenBroadcastManager
 import com.dreamdisplays.platform.server.playback.TimelineManager
 import com.dreamdisplays.platform.server.playback.WatchPartyManager
 import com.dreamdisplays.platform.server.utils.MessageUtil
+import com.dreamdisplays.platform.server.utils.ServerMessage
+import com.dreamdisplays.platform.server.utils.sendTo
 import com.dreamdisplays.platform.server.utils.VersionUtil
 import com.dreamdisplays.platform.server.utils.WorldGuardRegions
 import com.dreamdisplays.platform.server.utils.net.DisplayActions.context
@@ -39,7 +41,6 @@ import java.util.*
 @NullMarked
 object DisplayActions {
     private val logger = LoggerFactory.getLogger(javaClass)
-
     private val setVideoThrottle = ActionThrottle()
     private const val SET_VIDEO_COOLDOWN_MS = 250L
 
@@ -51,21 +52,26 @@ object DisplayActions {
     /** Handles a client-requested deletion, enforcing owner-or-permission check and physical proximity. */
     fun delete(player: Player, displayId: UUID) {
         val displayData = DisplayManager.getDisplayData(displayId)
-            ?: return MessageUtil.sendMessage(player, "noDisplay")
+            ?: return ServerMessage.NO_DISPLAY.sendTo(player)
 
         val isOwner = displayData.ownerId == player.uniqueId
         val canDelete = (isOwner && player.hasPermission(PaperServer.config.permissions.delete)) ||
                 player.hasPermission(PaperServer.config.permissions.deleteOthers)
         if (!canDelete) {
-            MessageUtil.sendMessage(player, "displayCommandMissingPermission")
+            ServerMessage.DISPLAY_COMMAND_MISSING_PERMISSION.sendTo(player)
             return
         }
         if (displayData !is PaperDisplayData || !DisplayManager.isPlayerInRange(player, displayData)) {
-            return MessageUtil.sendMessage(player, "noDisplay")
+            return ServerMessage.NO_DISPLAY.sendTo(player)
+        }
+
+        ServerApiHost.current?.askDelete(displayData, player.uniqueId)?.let { reason ->
+            if (reason.isNotEmpty()) MessageUtil.sendColoredMessage(player, reason)
+            return
         }
 
         DisplayManager.delete(displayId)
-        MessageUtil.sendMessage(player, "displayDeleted")
+        ServerMessage.DISPLAY_DELETED.sendTo(player)
     }
 
     /** Applies a client-supplied URL / language to a display, broadcasting and resetting the timeline. */
@@ -86,8 +92,14 @@ object DisplayActions {
         if (!DisplayManager.isPlayerInRange(player, displayData)) return
         if (!setVideoThrottle.tryAcquire(displayId, SET_VIDEO_COOLDOWN_MS)) return
 
+        val sanitizedLang = MediaUrlPolicy.sanitizeLang(lang)
+        ServerApiHost.current?.askSetUrl(displayData, url, sanitizedLang, player.uniqueId)?.let { reason ->
+            if (reason.isNotEmpty()) MessageUtil.sendColoredMessage(player, reason)
+            return
+        }
+
         displayData.url = url
-        displayData.lang = MediaUrlPolicy.sanitizeLang(lang)
+        displayData.lang = sanitizedLang
 
         runAsync { PaperServer.getInstance().storage.saveDisplay(displayData) }
         DisplayManager.broadcastUpdate(displayData)
@@ -116,7 +128,7 @@ object DisplayActions {
 
         // Check mode-specific permissions
         if (!canAccessMode(player, mode)) {
-            MessageUtil.sendMessage(player, "displayCommandMissingPermission")
+            ServerMessage.DISPLAY_COMMAND_MISSING_PERMISSION.sendTo(player)
             return
         }
         if (!DisplayManager.isPlayerInRange(player, displayData)) return
@@ -137,7 +149,7 @@ object DisplayActions {
     fun watchPartyStart(player: Player, displayId: UUID, url: String, lang: String) {
         val displayData = DisplayManager.getDisplayData(displayId) as? PaperDisplayData ?: return
         if (!player.hasPermission(PaperServer.config.permissions.watchparty)) {
-            MessageUtil.sendMessage(player, "displayCommandMissingPermission")
+            ServerMessage.DISPLAY_COMMAND_MISSING_PERMISSION.sendTo(player)
             return
         }
         if (!MediaUrlPolicy.isAllowed(url)) {
@@ -175,18 +187,15 @@ object DisplayActions {
         TimelineManager.onDurationReported(displayData, player.uniqueId, durationMs)
     }
 
-    /** Builds the permission context for [player] acting on [display]. */
     private fun context(display: PaperDisplayData, player: Player) =
         PlaybackContexts.of(display, player.uniqueId, isAdmin(player)) {
             WorldGuardRegions.isRegionMember(player, display.pos1)
         }
 
-    /** Same as [context]; kept separate because changing access additionally requires the [lock][PermissionsSection.lock] node (see [setAccess]). */
     private fun lockContext(display: PaperDisplayData, player: Player) = context(display, player)
 
     private fun isAdmin(player: Player) = player.hasPermission(PaperServer.config.permissions.deleteOthers)
 
-    /** Checks if [player] has permission to access the specified [mode]. */
     private fun canAccessMode(player: Player, mode: PlaybackMode): Boolean {
         val permission = when (mode) {
             PlaybackMode.LOCAL -> PaperServer.config.permissions.local
@@ -200,7 +209,7 @@ object DisplayActions {
     /** Tells a v1-only client that its Dream Displays is too old for this server. */
     fun notifyOutdatedClient(player: Player) {
         logger.info("${player.name} joined with an outdated Dream Displays (protocol v1); asked to update.")
-        MessageUtil.sendMessage(player, "outdatedClient")
+        ServerMessage.OUTDATED_CLIENT.sendTo(player)
     }
 
     /** Records the player's reported mod version and runs the mod / plugin update checks. */
@@ -237,11 +246,10 @@ object DisplayActions {
         }
     }
 
-    /** Sends a single batch of display-info packets to [player] (protocol chosen per player). */
     private fun sendDisplayBatch(player: Player, displays: List<PaperDisplayData>) {
         displays.forEach { display ->
             PacketUtil.sendDisplayInfo(
-                listOf(player),
+                [player],
                 display.id,
                 display.ownerId,
                 display.box.min,
@@ -264,8 +272,10 @@ object DisplayActions {
         }
     }
 
-    /** Tells [player] about a newer mod version if they haven't been notified this session. */
     private fun checkModUpdate(player: Player, userVersion: Semver) {
+        // The newest upstream release lacks the audiorange features, so pointing players at it would make
+        // them lose sound limits. ModGate reminds them about newer audiorange builds instead.
+        if (AUDIORANGE_REPLACES_MOD_UPDATE_CHECK) return
         val latestVersion = VersionState.modLatestVersion ?: return
 
         if (userVersion < latestVersion && !PlayerManager.hasBeenNotifiedAboutModUpdate(player)) {
@@ -274,13 +284,18 @@ object DisplayActions {
         }
     }
 
+    private const val AUDIORANGE_REPLACES_MOD_UPDATE_CHECK = true
+
     /** Tells privileged [player] about a newer plugin release; skipped for `-SNAPSHOT` builds. */
     private fun checkPluginUpdate(player: Player) {
+        // Upstream plugin releases lack the AltDisplays features; ModGate tells players about AltDisplays releases.
+        if (AUDIORANGE_REPLACES_MOD_UPDATE_CHECK) return
         val latestPluginVersion = VersionState.pluginLatestVersion ?: return
 
         if (PlayerManager.hasBeenNotifiedAboutPluginUpdate(player)) return
 
-        val currentVersionString = PaperServer.getInstance().pluginMeta.version
+        @Suppress("DEPRECATION")
+        val currentVersionString = PaperServer.getInstance().description.version
         if (currentVersionString.contains("-SNAPSHOT", ignoreCase = true) ||
             currentVersionString.contains("-DEV", ignoreCase = true)
         ) {
@@ -296,7 +311,6 @@ object DisplayActions {
         }
     }
 
-    /** Sends the localized `newVersion` message to [player], handling both plain and JSON templates. */
     private fun sendModUpdateMessage(player: Player, version: Semver) {
         val message = when (val rawMessage = PaperServer.config.getMessageForPlayer(player, "newVersion")) {
             is String -> String.format(rawMessage, version.toString())
@@ -314,7 +328,6 @@ object DisplayActions {
         MessageUtil.sendColoredMessage(player, message)
     }
 
-    /** Sends the localized `newPluginVersion` message with the latest version interpolated in. */
     private fun sendPluginUpdateMessage(player: Player, version: String) {
         val template = PaperServer.config.getMessageForPlayer(player, "newPluginVersion") as? String ?: return
         val message = String.format(template, version)

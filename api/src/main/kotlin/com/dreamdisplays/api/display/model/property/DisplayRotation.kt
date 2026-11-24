@@ -1,13 +1,10 @@
 package com.dreamdisplays.api.display.model.property
 
-import com.dreamdisplays.api.Unstable
-
 /**
  * Display texture rotation in quarter turns; enum centralizes the `0..3` contract.
  *
  * @since 1.8.x
  */
-@Unstable
 enum class DisplayRotation(val quarterTurns: Int) {
     /** No content rotation. */
     NONE(0),
@@ -22,7 +19,6 @@ enum class DisplayRotation(val quarterTurns: Int) {
     LEFT(3);
 
     companion object {
-        /** By quarter turns lookup table. */
         private val byQuarterTurns = entries.associateBy { it.quarterTurns }
 
         /** Decodes a rotation from persisted quarter turns, wrapping out-of-range values. */

@@ -38,19 +38,15 @@ internal class FramePrebuffer(
 
     private val queue = ArrayBlockingQueue<Timed>(capacityFrames.coerceAtLeast(1))
 
-    /** Set once the producer has finished (normal EOS): the consumer drains the tail then exits. */
     @Volatile
     private var inputClosed = false
 
-    /** Hard stop (teardown): the consumer exits immediately, recycling whatever is queued. */
     @Volatile
     private var aborted = false
 
-    /** True once enough frames are queued (or input closed) to begin playout. */
     @Volatile
     private var primed = false
 
-    /** True once the pre-prime preview frame has been shown (see [consume]). */
     @Volatile
     private var previewPresented = false
 
@@ -60,13 +56,8 @@ internal class FramePrebuffer(
     @Volatile
     private var seekStartGate: (() -> Boolean)? = null
 
-    /**
-     * When the first frame of the current fill was queued, or 0 while none has been. Bounds how long the prefill may
-     * hold playout back when the source trickles in slower than real time (see [PRIME_DEADLINE_NANOS]).
-     */
     @Volatile
     private var firstSubmitNanos = 0L
-
     private val generation = AtomicInteger(0)
     private val firstFramePresented = AtomicBoolean(false)
     private var consumer: Thread? = null
@@ -192,7 +183,6 @@ internal class FramePrebuffer(
 
     private fun parked(): Boolean = parkFlag?.get() == true
 
-    /** Fires [onFirstFrame] once per fill: the playback clock starts and the audio start gate opens here. */
     private fun armPlayout() {
         if (!firstFramePresented.compareAndSet(false, true)) return
         onFirstFrame()
@@ -315,17 +305,12 @@ internal class FramePrebuffer(
         drainAndRecycle()
     }
 
-    /**
-     * Consumer-thread-only A / V health counters. Pacing guarantees a *presented* frame is within [FramePacing]'s tolerance;
-     * these track how often that fails.
-     */
     private var statPresented = 0L
     private var statPresentedLate = 0L
     private var statDroppedLate = 0L
     private var statWorstLateNs = 0L
     private var statWindowStartNs = System.nanoTime()
 
-    /** Accounts one paced frame and periodically reports if too many are dropped or run behind the clock. */
     private fun recordFrame(lateNs: Long, presentedIt: Boolean) {
         if (presentedIt) {
             statPresented++
@@ -369,65 +354,34 @@ internal class FramePrebuffer(
 
     companion object {
         private const val POLL_MS = 50L
-
         private const val SEEK_PREFILL_FRAMES = 2
         private const val SEEK_START_WAIT_NANOS = 1_500_000_000L
         private const val MIN_DISPLAY_LEAD_NS = 8_000_000L
         private const val MAX_DISPLAY_LEAD_NS = 40_000_000L
         private const val JOIN_MS = 500L
-
         private const val PARK_POLL_MS = 10L
-
-        /** Reporting window for the A / V health counters. */
         private const val HEALTH_WINDOW_NS = 10_000_000_000L
-
-        /** Share of frames off the source's cadence inside one window that is worth a warning. */
         private const val DROP_WARN_PERCENT = 20L
-
-        /** Lateness at which a presented frame counts as behind the clock rather than on it. */
         private const val BEHIND_WARN_NANOS = 80_000_000L
-
-        /** Default prebuffer cushion. Smooths cold start / seek / quality-switch; kept under the
-         *  TimelineFollower's 1s catch-up tolerance so the added startup latency never reads as drift. */
-        private const val DEFAULT_PREBUFFER_MS = 400L
-
-        /** Floor for the prefill deadline, so a slow source still starts within a bounded time. */
-        private const val DEFAULT_PRIME_DEADLINE_MS = 800L
-
-        /** Prebuffer depth in ms. On by default; set `-Ddreamdisplays.playback.prebufferMs=0` to disable. */
-        val prebufferMs: Long =
-            System.getProperty("dreamdisplays.playback.prebufferMs")?.toLongOrNull()?.coerceIn(0, 5_000)
-                ?: DEFAULT_PREBUFFER_MS
-
-        /**
-         * Longest the prefill may hold playout back, `-Ddreamdisplays.playback.prebufferPrimeMs` to override. Only
-         * reached when the source delivers slower than real time (cold network start), where waiting out the whole
-         * cushion would delay the start more than it smooths it.
-         */
-        private val PRIME_DEADLINE_NANOS: Long =
-            (System.getProperty("dreamdisplays.playback.prebufferPrimeMs")?.toLongOrNull()?.coerceIn(0, 5_000)
-                ?: maxOf(DEFAULT_PRIME_DEADLINE_MS, prebufferMs)) * 1_000_000L
-
-        /** True when the prebuffer is enabled and the pipes should route frames through it. */
-        val enabled: Boolean get() = prebufferMs > 0
+        private const val PREBUFFER_MS = 400L
+        private const val PRIME_DEADLINE_NANOS = 800_000_000L
 
         private const val OUTSIDE_QUEUE_FRAMES = 2 + FrameSurface.MAX_DISPLAY_QUEUE
         private const val MIN_BUDGET_CAPACITY = 6
 
         /**
-         * Builds a started prebuffer sized for [frameNs] (one frame's duration), or null when disabled.
+         * Builds a started prebuffer sized for [frameNs] (one frame's duration).
          * Capacity is the prefill plus headroom so the producer keeps a little slack above the prefill mark.
          * With [frameBytes] known, the queue is also held to this playback's share of [FrameMemoryBudget].
          */
-        fun createIfEnabled(
+        fun create(
             surface: FrameSurface, frameNs: Long,
             getAudioClock: () -> Long, onFirstFrame: () -> Unit,
             terminated: AtomicBoolean, stopFlag: AtomicBoolean, debugLabel: String,
             presentPreview: Boolean = true, tolerateLateness: Boolean = true,
             parkFlag: AtomicBoolean? = null, frameBytes: Int = 0,
-        ): FramePrebuffer? {
-            if (!enabled || frameNs <= 0) return null
-            val wantedPrefill = ((prebufferMs * 1_000_000L) / frameNs).toInt().coerceIn(2, 240)
+        ): FramePrebuffer {
+            val wantedPrefill = ((PREBUFFER_MS * 1_000_000L) / frameNs.coerceAtLeast(1)).toInt().coerceIn(2, 240)
             // A little slack above the prefill mark so the producer can run slightly ahead of playout.
             // Memory cost is capacity * frameSize, so keep it tight — raw frames are large at high-res.
             val capacity = FrameMemoryBudget.framesFor(

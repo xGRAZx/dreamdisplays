@@ -9,6 +9,9 @@ import com.dreamdisplays.shared.protocol.PacketDirection
 import com.dreamdisplays.core.protocol.common.PacketRegistry
 import com.dreamdisplays.core.protocol.common.packets.*
 import com.dreamdisplays.platform.client.net.V2Payload
+//? if <1.20.5 {
+import com.dreamdisplays.platform.client.net.compat.CompatPayloads
+//?}
 import com.dreamdisplays.platform.server.VanillaServerState
 import com.dreamdisplays.platform.server.managers.DisplayManager
 import com.dreamdisplays.platform.server.managers.PlayerManager
@@ -23,7 +26,7 @@ import org.slf4j.LoggerFactory
 
 /**
  * Protocol-v2 networking for the `Fabric` flavor: one envelope payload in both directions.
- * Business logic is shared with the frozen-v1 receivers through [VanillaDisplayActions].
+ * Business logic is shared with the other receivers through [VanillaDisplayActions].
  */
 @FabricOnly
 object FabricV2Networking {
@@ -36,12 +39,16 @@ object FabricV2Networking {
             .onFailure { logger.warn("Failed to encode v2 packet", it) }
             .getOrNull() ?: return
         players.forEach { player ->
+            //? if >=1.20.5 {
             runCatching { ServerPlayNetworking.send(player, V2Payload(bytes)) }
+            //?} else
+            /*runCatching { ServerPlayNetworking.send(player, V2Payload.TYPE.id(), CompatPayloads.encode(V2Payload(bytes))) }*/
         }
     }
 
     /** Registers the single v2 envelope receiver. */
     fun registerReceivers() {
+        //? if >=1.20.5 {
         ServerPlayNetworking.registerGlobalReceiver(V2Payload.TYPE) { payload, context ->
             runCatching {
                 dispatch(
@@ -53,9 +60,19 @@ object FabricV2Networking {
                 logger.warn("Failed to handle v2 packet", e)
             }
         }
+        //?} else
+        /*ServerPlayNetworking.registerGlobalReceiver(V2Payload.TYPE.id()) { server, player, _, buf, _ ->
+            val bytes = ByteArray(buf.readableBytes()).also(buf::readBytes)
+            server.execute {
+                runCatching {
+                    dispatch(player, server, PacketRegistry.decode(bytes, PacketDirection.CLIENT_TO_SERVER) ?: return@runCatching)
+                }.onFailure { e ->
+                    logger.warn("Failed to handle v2 packet.", e)
+                }
+            }
+        }*/
     }
 
-    /** Routes a decoded serverbound packet to the shared action handlers. */
     private fun dispatch(player: ServerPlayer, server: MinecraftServer, packet: DreamPacket) {
         when (packet) {
             is ClientHello -> handleHello(player, server, packet)
@@ -97,15 +114,11 @@ object FabricV2Networking {
         }
     }
 
-    /**
-     * Marks [player] as a v2 peer, replies with the [ServerHello] and the display batch. Fullscreen re-delivery also
-     * runs here for reconnecting viewers.
-     */
     private fun handleHello(player: ServerPlayer, server: MinecraftServer, hello: ClientHello) {
         if (V2PlayerTracker.isV2(player.uuid)) return
         V2PlayerTracker.markV2(player.uuid, hello)
         send(
-            listOf(player),
+            [player],
             ServerHello(
                 isPremium = VanillaDisplayActions.isPremium(player),
                 isAdmin = VanillaDisplayActions.isAdmin(player),

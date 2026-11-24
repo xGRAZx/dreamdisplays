@@ -1,5 +1,6 @@
 package com.dreamdisplays.platform.client.render
 
+import com.dreamdisplays.platform.client.utils.identifier
 //? if >=1.21.11 {
 import net.minecraft.resources.Identifier
 //?} else
@@ -35,7 +36,6 @@ import kotlin.coroutines.cancellation.CancellationException
 /** Downloads, caches, and registers video thumbnails from YouTube and other sources as Minecraft textures. */
 object Thumbnails {
     private val logger = LoggerFactory.getLogger(javaClass)
-
     private val READY: Cache<String, Identifier> = Caffeine.newBuilder()
         .maximumSize(1_024)
         .expireAfterAccess(6, TimeUnit.HOURS)
@@ -71,7 +71,6 @@ object Thumbnails {
     )
 
     private val THUMB_CACHE_DIR: Path = Path.of("config", "dreamdisplays", "thumb-cache")
-
     private const val THUMB_CACHE_TTL_MS = 7L * 24L * 60L * 60L * 1_000L
 
     private fun releaseTexture(id: Identifier?) {
@@ -219,7 +218,7 @@ object Thumbnails {
             tex = DynamicTexture({ "yt-thumb-$key" }, image)
             //?} else
             /*tex = DynamicTexture(image)*/
-            val id = Identifier.fromNamespaceAndPath(Initializer.MOD_ID, "yt_thumb/${hash(key)}")
+            val id = identifier(Initializer.MOD_ID, "yt_thumb/${hash(key)}")
             Minecraft.getInstance().textureManager.register(id, tex)
             TextureUploadUtil.applyBilinearFilter(tex)
             AVG_COLOR.put(avgColorKey, decoded.avgColor)
@@ -231,7 +230,7 @@ object Thumbnails {
                 //?} else
                 /*ambientTex = DynamicTexture(ambientImage)*/
                 val ambientId =
-                    Identifier.fromNamespaceAndPath(Initializer.MOD_ID, "yt_thumb_ambient/${hash(avgColorKey)}")
+                    identifier(Initializer.MOD_ID, "yt_thumb_ambient/${hash(avgColorKey)}")
                 Minecraft.getInstance().textureManager.register(ambientId, ambientTex)
                 TextureUploadUtil.applyBilinearFilter(ambientTex)
                 AMBIENT_TEX.put(avgColorKey, ambientId)

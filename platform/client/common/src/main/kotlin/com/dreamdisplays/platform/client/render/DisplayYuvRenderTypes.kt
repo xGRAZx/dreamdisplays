@@ -1,5 +1,6 @@
 package com.dreamdisplays.platform.client.render
 
+import com.dreamdisplays.platform.client.utils.identifier
 import com.dreamdisplays.media.player.nativebridge.NativeMedia
 import com.dreamdisplays.platform.client.Initializer
 //? if >=1.21.11 <26.3 {
@@ -28,7 +29,6 @@ import net.minecraft.resources.Identifier
  */
 object DisplayYuvRenderTypes {
     //? if >=1.21.11 {
-    /** Shared linear / clamp sampler used by all video planes. */
     private var sharedPlaneSampler: GpuSampler? = null
 
     /**
@@ -44,7 +44,6 @@ object DisplayYuvRenderTypes {
             1, java.util.OptionalDouble.empty(),
         ).also { sharedPlaneSampler = it }
 
-    /** Sampler names bound to the Y / U / V planes. */
     private const val SAMPLER_Y = "Sampler0"
     private const val SAMPLER_U = "Sampler1"
     private const val SAMPLER_V = "Sampler3"
@@ -70,7 +69,7 @@ object DisplayYuvRenderTypes {
     val active: Boolean
         get() = !ShaderPackCompat.isShaderPackActive
                 && (isSupported || Yuv262Reflect.isAvailable)
-                && NativeMedia.yuvGpuEnabled
+                && NativeMedia.isAvailable
 
     /** Creates one RED8 plane texture through the built-in (26.1-era) or reflective 26.2 API. */
     fun createPlaneTexture(
@@ -81,22 +80,21 @@ object DisplayYuvRenderTypes {
         if (isSupported) VideoPlaneTexture(label, width, height)
         else Yuv262Reflect.createPlaneTexture(label, width, height)
 
-    /** Compiled lazily by the backend on first draw; shared by every YUV display. */
     private val pipeline: RenderPipeline by lazy {
         if (!isSupported) return@lazy Yuv262Reflect.createPipeline()
         RenderPipelineCompat.createDisplayPipeline(
-            Identifier.fromNamespaceAndPath(Initializer.MOD_ID, "pipeline/display_yuv"),
-            Identifier.fromNamespaceAndPath(Initializer.MOD_ID, "core/display_fog" +
+            identifier(Initializer.MOD_ID, "pipeline/display_yuv"),
+            identifier(Initializer.MOD_ID, "core/display_fog" +
                 //? if >=26.3 {
                 "_rp"
                 //?} else
                 /*""*/),
-            Identifier.fromNamespaceAndPath(Initializer.MOD_ID, "core/display_yuv" +
+            identifier(Initializer.MOD_ID, "core/display_yuv" +
                 //? if >=26.3 {
                 "_rp"
                 //?} else
                 /*""*/),
-            listOf(SAMPLER_Y, SAMPLER_U, SAMPLER_V),
+            [SAMPLER_Y, SAMPLER_U, SAMPLER_V],
         )
     }
 
@@ -112,7 +110,6 @@ object DisplayYuvRenderTypes {
         )
     )
 
-    /** Shared 1x1 white texture used for the loading / error quads in YUV mode. */
     private var whiteTextureId: Identifier? = null
 
     /**
@@ -126,7 +123,7 @@ object DisplayYuvRenderTypes {
             img.setPixel(0, 0, -1)
             val tex = DynamicTexture({ "dreamdisplays:white" }, img)
             tex.upload()
-            val newId = Identifier.fromNamespaceAndPath(Initializer.MOD_ID, "screen-white")
+            val newId = identifier(Initializer.MOD_ID, "screen-white")
             Minecraft.getInstance().textureManager.register(newId, tex)
             whiteTextureId = newId
             newId
@@ -134,7 +131,6 @@ object DisplayYuvRenderTypes {
         return DisplayUnlitRenderTypes.create("dream-displays-fallback", id)
     }
 
-    /** Shared flat solid-color render type (a 1 x 1 white texture modulated by the vertex color). */
     @Volatile
     private var sharedSolidType: RenderType? = null
 
@@ -156,7 +152,7 @@ object DisplayYuvRenderTypes {
             img.setPixelRGBA(0, 0, -1)
             val tex = DynamicTexture(img)
             tex.upload()
-            val newId = Identifier.fromNamespaceAndPath(Initializer.MOD_ID, "screen-white")
+            val newId = identifier(Initializer.MOD_ID, "screen-white")
             Minecraft.getInstance().textureManager.register(newId, tex)
             whiteTextureId = newId
             newId

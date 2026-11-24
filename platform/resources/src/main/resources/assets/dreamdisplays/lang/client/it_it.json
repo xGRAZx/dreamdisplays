@@ -1,5 +1,5 @@
 {
-  "dreamdisplays.ui.title": "Dream Displays",
+  "dreamdisplays.ui.title": "AltDisplays",
   "dreamdisplays.mode.local": "Locale",
   "dreamdisplays.mode.synced": "Sincronizzato",
   "dreamdisplays.mode.watch_party": "Visione condivisa",
@@ -102,8 +102,8 @@
   "dreamdisplays.access.everyone": "Tutti",
   "dreamdisplays.access.region": "Membri della regione",
   "dreamdisplays.access.locked": "Bloccato",
-  "dreamdisplays.message.outdated_server": "La versione di Dream Displays di questo server è troppo vecchia, quindi qui non è possibile usare gli schermi. Chiedi agli amministratori di aggiornarla",
-  "dreamdisplays.config.title": "Impostazioni di Dream Displays",
+  "dreamdisplays.message.outdated_server": "La versione di AltDisplays di questo server è troppo vecchia, quindi qui non è possibile usare gli schermi. Chiedi agli amministratori di aggiornarla",
+  "dreamdisplays.config.title": "Impostazioni di AltDisplays",
   "dreamdisplays.config.category.general": "Generale",
   "dreamdisplays.config.value.auto": "Auto",
   "dreamdisplays.config.value.chunks": "%s chunk",

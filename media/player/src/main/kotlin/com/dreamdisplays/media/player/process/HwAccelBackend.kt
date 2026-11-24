@@ -33,7 +33,7 @@ enum class HwAccelBackend(val ffmpegName: String?, val hwOutputFormat: String?, 
         fun detectDefault(): HwAccelBackend = when {
             OsInfo.isMac -> VIDEOTOOLBOX
             OsInfo.isWindows -> D3D11VA
-            OsInfo.isLinux -> VAAPI
+            OsInfo.isLinux -> if (LibvaCompat.vaapiUsable) VAAPI else NONE
             else -> NONE
         }
 
@@ -47,11 +47,13 @@ enum class HwAccelBackend(val ffmpegName: String?, val hwOutputFormat: String?, 
             return HWACCEL_FAIL_MARKERS.any { s.contains(it) }
         }
 
-        private val HWACCEL_FAIL_MARKERS = listOf(
+        private val HWACCEL_FAIL_MARKERS = [
             "hwaccel",
             "videotoolbox",
             "d3d11va",
             "vaapi",
+            "libva",
+            "implib-gen",
             "cuda",
             "cuvid",
             "nvdec",
@@ -63,6 +65,6 @@ enum class HwAccelBackend(val ffmpegName: String?, val hwOutputFormat: String?, 
             "decoder does not support",
             "scale_vt",
             "no such filter",
-        )
+        ]
     }
 }

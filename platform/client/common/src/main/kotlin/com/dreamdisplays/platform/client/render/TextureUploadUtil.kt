@@ -59,6 +59,7 @@ object TextureUploadUtil {
 
     //? if >=1.21.11 {
     /** Uploads a raw RGB24 video frame to a Minecraft texture. */
+    @Suppress("UNUSED")
     fun uploadRgb(
         texture: GpuTexture,
         src: ByteBuffer,
@@ -169,7 +170,6 @@ object TextureUploadUtil {
         }
     }
 
-    /** Write to a Minecraft texture using the `writeToTexture` method. */
     private fun writeToTexture(texture: GpuTexture, pixels: ByteBuffer, w: Int, h: Int, format: NativeImage.Format) {
         val encoder = RenderSystem.getDevice().createCommandEncoder()
         val write = writeMethods.getOrPut(encoder.javaClass) { resolveWriteMethod(encoder.javaClass) }
@@ -180,7 +180,6 @@ object TextureUploadUtil {
         }
     }
 
-    /** Invokes the given method on the given target. Throws the target exception if any. */
     private fun Method.invokeOrThrowTarget(target: Any, vararg args: Any?) {
         try {
             invoke(target, *args)
@@ -190,7 +189,6 @@ object TextureUploadUtil {
     }
     //?}
 
-    /** RGB24 -> RGBA32 conversion. */
     private fun rgbToRgba(src: ByteBuffer, dst: ByteBuffer, w: Int, h: Int) {
         val size = w * h * 3
         if (size <= 0 || src.remaining() < size) return

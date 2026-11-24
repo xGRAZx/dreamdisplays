@@ -1,5 +1,5 @@
 {
-  "dreamdisplays.ui.title": "Dream Displays",
+  "dreamdisplays.ui.title": "AltDisplays",
   "dreamdisplays.mode.local": "本地",
   "dreamdisplays.mode.synced": "同步",
   "dreamdisplays.mode.watch_party": "一起看",
@@ -102,8 +102,8 @@
   "dreamdisplays.access.everyone": "所有人",
   "dreamdisplays.access.region": "区域成员",
   "dreamdisplays.access.locked": "已锁定",
-  "dreamdisplays.message.outdated_server": "此服务器的 Dream Displays 版本过旧，无法在此使用显示屏。请联系服务器管理员进行更新",
-  "dreamdisplays.config.title": "Dream Displays 设置",
+  "dreamdisplays.message.outdated_server": "此服务器的 AltDisplays 版本过旧，无法在此使用显示屏。请联系服务器管理员进行更新",
+  "dreamdisplays.config.title": "AltDisplays 设置",
   "dreamdisplays.config.category.general": "常规",
   "dreamdisplays.config.value.auto": "自动",
   "dreamdisplays.config.value.chunks": "%s 个区块",

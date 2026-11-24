@@ -20,11 +20,10 @@ class AudioRenderChainTest {
         return AudioRenderChain(44100f, engine)
     }
 
-    /** Encodes one S16LE stereo frame (matches [AudioRenderChain]'s own decode / encode convention). */
-    private fun frame(l: Short, r: Short): ByteArray = byteArrayOf(
+    private fun frame(l: Short, r: Short): ByteArray = [
         (l.toInt() and 0xFF).toByte(), ((l.toInt() shr 8) and 0xFF).toByte(),
         (r.toInt() and 0xFF).toByte(), ((r.toInt() shr 8) and 0xFF).toByte(),
-    )
+    ]
 
     @Test
     fun `OFF tier applies exactly the legacy gain, bit for bit`() {
@@ -77,7 +76,7 @@ class AudioRenderChainTest {
 
     @Test
     fun `normalization brings a quiet and a loud source to about the same level`() {
-        for (quality in listOf(AcousticQuality.OFF, AcousticQuality.ADVANCED)) {
+        for (quality in [AcousticQuality.OFF, AcousticQuality.ADVANCED]) {
             val quiet = settledRms(quality, amplitude = 0.06)
             val loud = settledRms(quality, amplitude = 0.6)
             val apartDb = 20 * kotlin.math.log10(loud / quiet)
@@ -105,6 +104,23 @@ class AudioRenderChainTest {
         val after = rms(tone(0.6).also { chain.process(it, it.size, 1.0) })
         val jumpDb = 20 * kotlin.math.log10(after / before)
         assertTrue(kotlin.math.abs(jumpDb) < 1.0, "Volume jumped ${"%.1f".format(jumpDb)} dB across a reset.")
+    }
+
+    @Test
+    fun `server range gain fades the spatial mix smoothly to silence`() {
+        val loud = newChain(binaural = false).also { it.updateState(defaultState()) }
+        val silent = newChain(binaural = false).also { it.updateState(defaultState().copy(rangeGain = 0f)) }
+        val half = newChain(binaural = false).also { it.updateState(defaultState().copy(rangeGain = 0.5f)) }
+        var l = 0.0
+        var s = 0.0
+        var h = 0.0
+        repeat(40) {
+            l = rms(tone(0.3).also { loud.process(it, it.size, 1.0) })
+            s = rms(tone(0.3).also { silent.process(it, it.size, 1.0) })
+            h = rms(tone(0.3).also { half.process(it, it.size, 1.0) })
+        }
+        assertTrue(s < 1e-4, "Out-of-range source still audible: rms=$s.")
+        assertEquals(0.5, h / l, 0.02)
     }
 
     private fun settledRms(quality: AcousticQuality, amplitude: Double): Double {

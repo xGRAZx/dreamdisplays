@@ -44,7 +44,7 @@
   "displayDeleted": "&7D |&f Wyświetlacz został usunięty!",
   "displayReported": "&7D |&f Wyświetlacz został zgłoszony!",
   "reportNotConfigured": "&7D |&f System raportowania jest wyłączony na tym serwerze!",
-  "outdatedClient": "&7D |&f Twoja wersja Dream Displays jest zbyt stara dla tego serwera. Zaktualizuj moda, aby korzystać z ekranów!",
+  "outdatedClient": "&7D |&f Twoja wersja AltDisplays jest zbyt stara dla tego serwera. Zaktualizuj moda, aby korzystać z ekranów!",
   "newVersion": {
     "text": "",
     "extra": [
@@ -53,7 +53,7 @@
         "color": "#9D9D97"
       },
       {
-        "text": "Dostępna nowa wersja %s Dream Displays! Proszę ",
+        "text": "Dostępna nowa wersja %s AltDisplays! Proszę ",
         "color": "#FFFFFF"
       },
       {
@@ -62,7 +62,7 @@
         "underlined": true,
         "clickEvent": {
           "action": "open_url",
-          "value": "https://modrinth.com/plugin/dreamdisplays/versions"
+          "value": "https://github.com/xGRAZx/dreamdisplays/releases/latest"
         },
         "hoverEvent": {
           "action": "show_text",
@@ -75,9 +75,9 @@
       }
     ]
   },
-  "newPluginVersion": "&7D |&f Nowa wersja pluginu Dream Displays (%s)! Proszę zaktualizować go na serwerze!",
-  "configReloaded": "&7D | &fDream Displays został przeładowany!",
-  "configReloadFailed": "&7D |&f Nie udało się przeładować Dream Displays. Proszę sprawdzić konsolę, ponieważ mogą tam być błędy",
+  "newPluginVersion": "&7D |&f Nowa wersja pluginu AltDisplays (%s)! Proszę zaktualizować go na serwerze!",
+  "configReloaded": "&7D | &fAltDisplays został przeładowany!",
+  "configReloadFailed": "&7D |&f Nie udało się przeładować AltDisplays. Proszę sprawdzić konsolę, ponieważ mogą tam być błędy",
   "configReloadSummary": "&7D |&f Przeładowano: konfigurację, wiadomości językowe i uprawnienia komend",
   "noDisplaysFound": "&7D |&f Nie znaleziono wyświetlaczy",
   "displayListHeader": "&7D |&f Wyświetlacze:",
@@ -101,16 +101,16 @@
         "color": "#FFFFFF"
       },
       {
-        "text": "Dream Displays",
+        "text": "AltDisplays",
         "color": "#5555FF",
         "underlined": true,
         "clickEvent": {
           "action": "open_url",
-          "value": "https://modrinth.com/plugin/dreamdisplays"
+          "value": "https://github.com/xGRAZx/dreamdisplays/releases/latest"
         },
         "hoverEvent": {
           "action": "show_text",
-          "value": "Click to download Dream Displays"
+          "value": "Click to download AltDisplays"
         }
       },
       {
@@ -127,20 +127,20 @@
         "color": "#9D9D97"
       },
       {
-        "text": "Mod Dream Displays jest wymagany, aby zobaczyć wyświetlacze na serwerze. Proszę ",
+        "text": "Mod AltDisplays jest wymagany, aby zobaczyć wyświetlacze na serwerze. Proszę ",
         "color": "#FFFFFF"
       },
       {
-        "text": "pobrać Dream Displays",
+        "text": "pobrać AltDisplays",
         "color": "#5555FF",
         "underlined": true,
         "clickEvent": {
           "action": "open_url",
-          "value": "https://modrinth.com/plugin/dreamdisplays"
+          "value": "https://github.com/xGRAZx/dreamdisplays/releases/latest"
         },
         "hoverEvent": {
           "action": "show_text",
-          "value": "Kliknij, aby pobrać Dream Displays"
+          "value": "Kliknij, aby pobrać AltDisplays"
         }
       },
       {
@@ -195,7 +195,7 @@
   "fullscreenNoDisplay": "&7D |&f Nie znaleziono wyświetlacza ani wczytanego świata do hostowania transmisji z URL",
   "fullscreenPlayerOnly": "&7D |&f \"this\" i \"@s\" działają tylko wtedy, gdy komendę wykonuje gracz",
   "fullscreenNetworkNoPlayers": "&7D |&f Transmisja sieciowa wymaga co najmniej jednego gracza online na tym serwerze",
-  "fullscreenNetworkNoProxy": "&7D |&f Ten serwer nie jest połączony z proxy Dream Displays, sprawdź [proxy] w config.toml.",
+  "fullscreenNetworkNoProxy": "&7D |&f Ten serwer nie jest połączony z proxy AltDisplays, sprawdź [proxy] w config.toml.",
   "fullscreenNetworkNotYetSupported": "&7D |&f Sieciowy pełny ekran (server <nazwa>/<global>) nie jest jeszcze obsługiwany.",
   "fullscreenNetworkUrlOnly": "&7D |&f Sieciowy pełny ekran obsługuje tylko URL wideo, a nie istniejące id wyświetlacza",
   "fullscreenNetworkRadiusUnsupported": "&7D |&f radius nie jest obsługiwany razem z server — działa tylko na tym serwerze, uruchom go lokalnie tutaj",

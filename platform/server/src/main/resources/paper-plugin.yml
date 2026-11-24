@@ -1,25 +1,28 @@
-name: DreamDisplays
-version: '${version}'
+name: AltDisplays
+version: '${altVersion}'
 main: com.dreamdisplays.platform.server.PaperServer
+bootstrapper: com.dreamdisplays.platform.server.PaperBootstrap
 api-version: '${paperMinecraftApi}'
-description: 'Plugin for the Dream Displays mod.'
-website: 'https://github.com/arnodoelinger/dreamdisplays'
+description: 'AltDisplays by GRAZ (Dream Displays ${version} inside): server plugin for the AltDisplays mod. Based on Dream Displays by arnodoelinger, INotSleep, Kolyakot33 and Toffikk.'
+website: 'https://github.com/xGRAZx/dreamdisplays'
 authors:
-  - arnodoelinger
-  - INotSleep
-  - Kolyakot33
-  - Toffikk
+  - GRAZ
 folia-supported: true
+# Don't change this format!
+# Pre-1.19.4 dependency format on purpose: Paper 1.19.3 only reads this one, and every newer Paper migrates it
+# (a declared dependency joins the classpath; load-after loads it before this plugin).
 dependencies:
-  server:
-    LuckPerms:
-      load: BEFORE
-      required: false
-      join-classpath: true
-    WorldGuard:
-      load: BEFORE
-      required: false
-      join-classpath: true
+  - name: LuckPerms
+    required: false
+    bootstrap: false
+  - name: WorldGuard
+    required: false
+    bootstrap: false
+load-after:
+  - name: LuckPerms
+    bootstrap: false
+  - name: WorldGuard
+    bootstrap: false
 permissions:
   dreamdisplays.create:
     default: true
@@ -79,3 +82,9 @@ permissions:
     default: true
   dreamdisplays.schedule.others:
     default: op
+  dreamdisplays.audio:
+    description: Edit screen sound range and the view settings forced on every player (audiorange).
+    default: op
+  dreamdisplays.audio.bypass:
+    description: See screens without the audiorange client mod when mod_required.txt is on.
+    default: false

@@ -4,6 +4,7 @@ import com.dreamdisplays.api.display.model.property.DisplayId
 import com.dreamdisplays.core.services.keys.AudioAcousticsServices
 import com.dreamdisplays.core.runtime.getOrNull
 import com.dreamdisplays.platform.client.audio.ListenerPoseTracker
+import com.dreamdisplays.platform.client.audiorange.ViewSync
 import com.dreamdisplays.platform.client.capabilities.CapabilityNegotiationService
 import com.dreamdisplays.platform.client.core.ClientApplication
 import com.dreamdisplays.platform.client.core.ClientLifecycleEvent
@@ -25,38 +26,16 @@ import java.util.*
  * Handles per-tick client display state: level changes, hover, unloading, and shortcuts.
  */
 object ClientTickManager {
-    /**
-     * Deadband around a display's renderDistance so a player lingering near the boundary doesn't
-     * flip park / wake every tick (block-quantized position drift across a single threshold).
-     */
     private const val DORMANT_HYSTERESIS_BLOCKS = 4
-
-    /** Edge-detect state for the menu-open button. */
     private var wasPressed = false
-
-    /** True while the player is connected to a server / local world. */
     private var wasInMultiplayer = false
 
-    /** The level seen last tick, used to detect level changes. */
     @Volatile
     private var lastLevel: ClientLevel? = null
-
-    /**
-     * The play connection last seen in a level. A proxy server switch goes through the configuration phase and
-     * builds a new one, while a dimension change keeps it, so a different instance means a different backend.
-     */
     private var lastConnection: ClientPacketListener? = null
-
-    /** Counter that throttles the unloaded-screen restore check. */
     private var unloadCheckTick = 0
-
-    /** The display currently under the crosshair, or `null`. */
     private var hoveredDisplayScreen: DisplayScreen? = null
-
-    /** Id of the display hovered last tick, used to emit look events on change. */
     private var lastHoveredId: UUID? = null
-
-    /** Monotonic tick counter emitted with [ClientLifecycleEvent.Tick]. */
     private var tickCount = 0L
 
     /** Main per-tick update: level changes, hover, render-distance (un)loading, and the menu shortcut. */
@@ -125,6 +104,7 @@ object ClientTickManager {
         }
 
         val overBudget = DisplayLifecycleManager.overBudget(playerPos)
+        ViewSync.clientTick()
         for (displayScreen in DisplayRegistry.getScreens()) {
             // Hysteresis
             val threshold = if (displayScreen.isDormant) {
@@ -190,16 +170,11 @@ object ClientTickManager {
         }
     }
 
-    /** Frees a fully warm dormant display, keeping only its cheap replay snapshot for fast reappearance. */
     private fun compressDormant(displayScreen: DisplayScreen) {
         DisplayRegistry.saveScreenData(displayScreen)
         DisplayRegistry.unregisterScreen(displayScreen)
     }
 
-    /**
-     * Ensures there is budget for [candidate], evicting parked displays into snapshots when needed.
-     * Prefers the display furthest from the viewer as the eviction target.
-     */
     private fun reserveWarmSlot(candidate: DisplayScreen): Boolean {
         if (WarmParkPolicy.maxFullWarmDisplays <= 0) return false
         repeat(WarmParkPolicy.maxFullWarmDisplays + 1) {
@@ -214,7 +189,6 @@ object ClientTickManager {
         return false
     }
 
-    /** Emits [DisplayInteraction.Looked] / [DisplayInteraction.LookedAway] when the crosshair target changes. */
     private fun notifyHoverChange(hoveredId: UUID?) {
         if (hoveredId == lastHoveredId) return
         val service = DreamServices.registry.getOrNull<DisplayInteractionService>()
@@ -223,7 +197,6 @@ object ClientTickManager {
         lastHoveredId = hoveredId
     }
 
-    /** Kicks off the capability handshake (v2 hello + v1 probe) for the just-joined server. */
     private fun checkVersionAndSendPacket() {
         DreamServices.registry.getOrNull<CapabilityNegotiationService>()?.advertise()
     }
